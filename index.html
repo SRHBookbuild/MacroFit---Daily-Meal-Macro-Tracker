@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MacroFit - Daily Meal & Macro Tracker</title>
+  <title>MacroFit - Daily Meal & Macro Journal</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Font: Inter -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -26,18 +26,13 @@
               500: '#22c55e',
               600: '#16a34a',
               700: '#15803d'
-            },
-            protein: '#3b82f6',
-            carbs: '#f59e0b',
-            fat: '#ec4899',
-            calories: '#10b981'
+            }
           }
         }
       }
     }
   </script>
   <style>
-    /* Custom smooth transition styling */
     .transition-width {
       transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -46,7 +41,6 @@
       transform: rotate(-90deg);
       transform-origin: 50% 50%;
     }
-    /* Hide scrollbar for tabs */
     .no-scrollbar::-webkit-scrollbar {
       display: none;
     }
@@ -59,8 +53,10 @@
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
 
   <!-- Header -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm/50 backdrop-blur-md bg-white/90">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm/50 backdrop-blur-md bg-white/95">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand Logo -->
       <div class="flex items-center space-x-3">
         <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
           <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -68,33 +64,88 @@
           </svg>
         </div>
         <div>
-          <span class="text-xl font-extrabold tracking-tight font-display bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">MacroFit</span>
-          <span class="hidden sm:inline-block ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Daily Calculator</span>
+          <div class="flex items-center space-x-2">
+            <span class="text-xl font-extrabold tracking-tight font-display bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">MacroFit</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Daily Journal</span>
+          </div>
+          <div class="flex items-center space-x-1.5 mt-0.5">
+            <span id="sync-status-indicator" class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span id="sync-status-text" class="text-[11px] text-slate-500 font-medium">Browser Storage Active</span>
+          </div>
         </div>
       </div>
 
-      <!-- Action items -->
-      <div class="flex items-center space-x-2">
-        <button id="export-summary-btn" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 transition">
-          <svg class="w-4 h-4 mr-1.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+      <!-- Action Utility Buttons -->
+      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <!-- Direct File Link (File System Access API) -->
+        <button id="link-file-btn" title="Sync directly with a local file on your disk" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition">
+          <svg class="w-3.5 h-3.5 mr-1 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
           </svg>
-          Copy Report
+          <span id="link-file-label">Link Local File</span>
         </button>
 
-        <button id="open-settings-btn" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 transition">
-          <svg class="w-4 h-4 mr-1.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <!-- Backup Data Dropdown Trigger -->
+        <div class="relative inline-block text-left" id="backup-menu-container">
+          <button id="backup-menu-btn" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 transition">
+            <svg class="w-3.5 h-3.5 mr-1 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            Data & Backup
+            <svg class="w-3 h-3 ml-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+
+          <!-- Dropdown items -->
+          <div id="backup-dropdown" class="hidden absolute right-0 mt-2 w-56 rounded-xl shadow-xl bg-white border border-slate-200 py-1.5 z-40 text-xs font-medium text-slate-700 divide-y divide-slate-100">
+            <div class="py-1">
+              <button id="export-json-btn" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center">
+                <svg class="w-4 h-4 mr-2 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Export Full Backup (.json)
+              </button>
+              <button id="import-json-btn" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center">
+                <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                Import Backup (.json)
+              </button>
+            </div>
+            <div class="py-1">
+              <button id="export-csv-btn" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center">
+                <svg class="w-4 h-4 mr-2 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Export Day to CSV (.csv)
+              </button>
+              <button id="copy-summary-btn" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center">
+                <svg class="w-4 h-4 mr-2 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                </svg>
+                Copy Text Summary
+              </button>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="import-file-input" class="hidden" accept=".json">
+
+        <!-- Macro Targets Modal Button -->
+        <button id="open-settings-btn" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 transition">
+          <svg class="w-3.5 h-3.5 mr-1 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
           Targets
         </button>
 
-        <button id="reset-day-btn" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition">
-          <svg class="w-4 h-4 mr-1 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <!-- Clear Day Button -->
+        <button id="reset-day-btn" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition">
+          <svg class="w-3.5 h-3.5 mr-1 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
           </svg>
-          Reset Day
+          Clear Day
         </button>
       </div>
     </div>
@@ -106,6 +157,33 @@
   <!-- Main Container -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
     
+    <!-- Date Journaling Bar -->
+    <div class="bg-white rounded-2xl p-4 sm:px-6 shadow-sm border border-slate-200/80 mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-2">
+        <button id="date-prev-btn" title="Previous Day" class="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 transition">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <button id="date-today-btn" class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-xs font-bold text-slate-700 transition">
+          Today
+        </button>
+        <button id="date-next-btn" title="Next Day" class="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 transition">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Date Picker Input & Display -->
+      <div class="flex items-center space-x-3">
+        <div class="relative">
+          <input type="date" id="journal-date-input" class="bg-slate-50 border border-slate-200 text-slate-800 text-xs sm:text-sm font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+        </div>
+        <span id="journal-day-label" class="text-xs sm:text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-xl">Today</span>
+      </div>
+    </div>
+
     <!-- Top Summary Dashboard Banner -->
     <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 mb-8 transition">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
@@ -230,14 +308,14 @@
       </div>
     </div>
 
-    <!-- Main Content Layout: Meals on Left, Quick Add Library on Right -->
+    <!-- Main Content Layout: Meals on Left, Food Picker on Right -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       
-      <!-- Meals Breakdown Section (7 Cols on desktop) -->
+      <!-- Meals Breakdown Section -->
       <div class="lg:col-span-7 space-y-6">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl font-bold text-slate-900 tracking-tight font-display">Today's Meals</h2>
-          <span class="text-xs font-medium text-slate-500" id="total-meal-items-count">0 items tracked</span>
+          <h2 class="text-xl font-bold text-slate-900 tracking-tight font-display">Daily Food Log</h2>
+          <span class="text-xs font-medium text-slate-500" id="total-meal-items-count">0 items logged</span>
         </div>
 
         <!-- Meal Category Container (Dynamic Render Target) -->
@@ -246,9 +324,9 @@
         </div>
       </div>
 
-      <!-- Food Picker / Quick Add Sidebar (5 Cols on desktop) -->
+      <!-- Food Picker / Quick Add Sidebar -->
       <div class="lg:col-span-5">
-        <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 sticky top-24">
+        <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 sticky top-20">
           
           <!-- Library Header & Tab Navigation -->
           <div class="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -257,7 +335,7 @@
               <p class="text-xs text-slate-500">Choose preset or custom item</p>
             </div>
             <!-- Destination Meal Selector -->
-            <div class="flex items-center space-x-1">
+            <div class="flex items-center space-x-1.5">
               <label for="active-meal-select" class="text-xs text-slate-500 font-medium">Log to:</label>
               <select id="active-meal-select" class="text-xs font-semibold bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 <option value="breakfast">Breakfast</option>
@@ -271,10 +349,10 @@
           <!-- Switcher: Preset Search vs Custom Entry -->
           <div class="flex border-b border-slate-200 mt-4 text-xs font-medium">
             <button id="tab-presets-btn" class="flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-700 transition">
-              Food Presets
+              Food Library
             </button>
             <button id="tab-custom-btn" class="flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition">
-              Custom Entry
+              + Custom Item
             </button>
           </div>
 
@@ -282,7 +360,7 @@
           <div id="view-presets" class="mt-4">
             <!-- Search & Filter -->
             <div class="relative mb-3">
-              <input type="text" id="food-search-input" placeholder="Search chicken, eggs, rice, avocado..." class="w-full text-xs sm:text-sm pl-9 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50 placeholder:text-slate-400">
+              <input type="text" id="food-search-input" placeholder="Search chicken, sourdough, flat white, cheese..." class="w-full text-xs sm:text-sm pl-9 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50 placeholder:text-slate-400">
               <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
@@ -296,10 +374,10 @@
             <!-- Quick category tags -->
             <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pb-2 text-xs">
               <button data-cat="all" class="cat-pill active px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-medium whitespace-nowrap">All</button>
+              <button data-cat="staples" class="cat-pill px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium whitespace-nowrap">Aussie Favorites</button>
               <button data-cat="protein" class="cat-pill px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium whitespace-nowrap">Proteins</button>
-              <button data-cat="carbs" class="cat-pill px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium whitespace-nowrap">Carbs & Grains</button>
-              <button data-cat="fats" class="cat-pill px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium whitespace-nowrap">Fats & Nuts</button>
-              <button data-cat="veggies" class="cat-pill px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium whitespace-nowrap">Produce</button>
+              <button data-cat="carbs" class="cat-pill px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium whitespace-nowrap">Carbs</button>
+              <button data-cat="fats" class="cat-pill px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium whitespace-nowrap">Fats & Dairy</button>
             </div>
 
             <!-- Food List Items -->
@@ -329,15 +407,15 @@
             <div class="grid grid-cols-3 gap-2">
               <div>
                 <label class="block text-xs font-semibold text-blue-600 mb-1">Protein (g)</label>
-                <input id="custom-protein" type="number" min="0" step="0.5" placeholder="20" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <input id="custom-protein" type="number" min="0" step="0.1" placeholder="20" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-amber-600 mb-1">Carbs (g)</label>
-                <input id="custom-carbs" type="number" min="0" step="0.5" placeholder="15" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <input id="custom-carbs" type="number" min="0" step="0.1" placeholder="15" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-rose-600 mb-1">Fat (g)</label>
-                <input id="custom-fat" type="number" min="0" step="0.5" placeholder="5" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <input id="custom-fat" type="number" min="0" step="0.1" placeholder="5" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
               </div>
             </div>
 
@@ -346,7 +424,7 @@
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                <span>Add Custom Food to Meal</span>
+                <span>Add & Save to Custom Foods</span>
               </button>
             </div>
           </div>
@@ -363,7 +441,7 @@
       <div class="flex items-center justify-between pb-4 border-b border-slate-100">
         <div>
           <h3 class="text-lg font-bold text-slate-900">Configure Daily Targets</h3>
-          <p class="text-xs text-slate-500">Pick an established nutritional preset or customize your grams.</p>
+          <p class="text-xs text-slate-500">Pick an established nutritional plan or set custom macros.</p>
         </div>
         <button id="close-modal-btn" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -416,7 +494,7 @@
             <input id="input-target-fat" type="number" min="0" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500">
           </div>
         </div>
-        <p class="text-[11px] text-slate-400">Sum of macros: <span id="calculated-macro-cals" class="font-medium text-slate-600">0</span> kcal (Protein x 4 + Carbs x 4 + Fat x 9)</p>
+        <p class="text-[11px] text-slate-400">Sum of macros: <span id="calculated-macro-cals" class="font-medium text-slate-600">0</span> kcal (P×4 + C×4 + F×9)</p>
       </div>
 
       <div class="mt-6 flex justify-end space-x-2">
@@ -433,12 +511,9 @@
   <!-- Footer -->
   <footer class="border-t border-slate-200 bg-white py-6 mt-12 text-center text-xs text-slate-400">
     <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-      <p>MacroFit Tracker &copy; <span id="year-label"></span> &bull; Stored locally in your browser</p>
-      <div class="flex items-center space-x-4">
-        <span class="inline-flex items-center text-emerald-600 font-medium">
-          <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-          Autosaved
-        </span>
+      <p>MacroFit Journal &copy; <span id="year-label"></span> &bull; Offline Ready &amp; Auto-saved</p>
+      <div class="flex items-center space-x-3 text-slate-500">
+        <span>Persistent History Enabled</span>
       </div>
     </div>
   </footer>
@@ -446,31 +521,33 @@
   <!-- App Script Logic -->
   <script>
     /**
-     * Preset Food Database
-     * Base values are per specified baseAmount (e.g. 100g, 1 egg, etc.)
+     * Australian Staples & Core Nutritional Database
      */
-    const FOOD_DATABASE = [
+    const BUILTIN_FOOD_DATABASE = [
+      // Australian Custom Staples Preloaded
+      { id: 'aus1', name: 'Woolworths Hot Roast Chicken', category: 'staples', unit: 'g', baseAmount: 100, calories: 191, protein: 25.0, carbs: 1.0, fat: 9.6 },
+      { id: 'aus2', name: 'Bakers Delight Sourdough Slice', category: 'staples', unit: 'slice (67g)', baseAmount: 1, calories: 162, protein: 5.8, carbs: 31.5, fat: 0.1 },
+      { id: 'aus3', name: 'Large Strong Skim Flat White', category: 'staples', unit: 'large (400ml)', baseAmount: 1, calories: 125, protein: 12.5, carbs: 17.5, fat: 0.4 },
+      { id: 'aus4', name: 'Deli Tasty Cheese Slice', category: 'staples', unit: 'slice (21g)', baseAmount: 1, calories: 87, protein: 5.2, carbs: 0.1, fat: 7.4 },
+      
+      // Standard Staples
       { id: 'f1', name: 'Boneless Skinless Chicken Breast (Cooked)', category: 'protein', unit: 'g', baseAmount: 100, calories: 165, protein: 31, carbs: 0, fat: 3.6 },
       { id: 'f2', name: 'Whole Large Egg', category: 'protein', unit: 'egg', baseAmount: 1, calories: 72, protein: 6.3, carbs: 0.4, fat: 4.8 },
       { id: 'f3', name: 'Egg Whites (Liquid)', category: 'protein', unit: 'ml', baseAmount: 100, calories: 52, protein: 11, carbs: 0.7, fat: 0.2 },
       { id: 'f4', name: 'Atlantic Salmon (Cooked)', category: 'protein', unit: 'g', baseAmount: 100, calories: 206, protein: 22, carbs: 0, fat: 12 },
       { id: 'f5', name: '100% Whey Protein Powder', category: 'protein', unit: 'scoop (30g)', baseAmount: 1, calories: 120, protein: 24, carbs: 2, fat: 1.5 },
       { id: 'f6', name: 'Greek Yogurt 0% Fat', category: 'protein', unit: 'g', baseAmount: 150, calories: 88, protein: 15, carbs: 5.4, fat: 0 },
-      { id: 'f7', name: 'White Rice (Cooked)', category: 'carbs', unit: 'g', baseAmount: 150, calories: 195, protein: 4.1, carbs: 42, fat: 0.4 },
+      { id: 'f7', name: 'White Jasmine Rice (Cooked)', category: 'carbs', unit: 'g', baseAmount: 150, calories: 195, protein: 4.1, carbs: 42, fat: 0.4 },
       { id: 'f8', name: 'Rolled Oats (Dry)', category: 'carbs', unit: 'g', baseAmount: 50, calories: 189, protein: 6.5, carbs: 34, fat: 3.5 },
       { id: 'f9', name: 'Sweet Potato (Baked)', category: 'carbs', unit: 'g', baseAmount: 150, calories: 135, protein: 3, carbs: 31, fat: 0.2 },
-      { id: 'f10', name: 'Whole Grain Bread', category: 'carbs', unit: 'slice', baseAmount: 1, calories: 80, protein: 4, carbs: 14, fat: 1 },
-      { id: 'f11', name: 'Banana (Medium)', category: 'carbs', unit: 'banana', baseAmount: 1, calories: 105, protein: 1.3, carbs: 27, fat: 0.3 },
-      { id: 'f12', name: 'Avocado (Fresh)', category: 'fats', unit: 'g', baseAmount: 100, calories: 160, protein: 2, carbs: 8.5, fat: 14.7 },
-      { id: 'f13', name: 'Extra Virgin Olive Oil', category: 'fats', unit: 'tbsp (14g)', baseAmount: 1, calories: 119, protein: 0, carbs: 0, fat: 13.5 },
-      { id: 'f14', name: 'Whole Almonds', category: 'fats', unit: 'g', baseAmount: 30, calories: 173, protein: 6.3, carbs: 6.1, fat: 15 },
-      { id: 'f15', name: 'Peanut Butter (Natural)', category: 'fats', unit: 'tbsp (16g)', baseAmount: 1, calories: 95, protein: 4, carbs: 3.5, fat: 8 },
-      { id: 'f16', name: 'Baby Spinach (Raw)', category: 'veggies', unit: 'g', baseAmount: 100, calories: 23, protein: 2.9, carbs: 3.6, fat: 0.4 },
-      { id: 'f17', name: 'Broccoli Florets (Steamed)', category: 'veggies', unit: 'g', baseAmount: 150, calories: 52, protein: 3.7, carbs: 10, fat: 0.6 },
-      { id: 'f18', name: 'Blueberries (Fresh)', category: 'carbs', unit: 'g', baseAmount: 100, calories: 57, protein: 0.7, carbs: 14.5, fat: 0.3 }
+      { id: 'f10', name: 'Fresh Banana (Medium)', category: 'carbs', unit: 'banana', baseAmount: 1, calories: 105, protein: 1.3, carbs: 27, fat: 0.3 },
+      { id: 'f11', name: 'Fresh Hass Avocado', category: 'fats', unit: 'g', baseAmount: 100, calories: 160, protein: 2, carbs: 8.5, fat: 14.7 },
+      { id: 'f12', name: 'Extra Virgin Olive Oil', category: 'fats', unit: 'tbsp (14g)', baseAmount: 1, calories: 119, protein: 0, carbs: 0, fat: 13.5 },
+      { id: 'f13', name: 'Raw Almonds', category: 'fats', unit: 'g', baseAmount: 30, calories: 173, protein: 6.3, carbs: 6.1, fat: 15 },
+      { id: 'f14', name: 'Steamed Broccoli', category: 'veggies', unit: 'g', baseAmount: 150, calories: 52, protein: 3.7, carbs: 10, fat: 0.6 }
     ];
 
-    // Nutrition Strategies
+    // Presets
     const STRATEGY_PRESETS = {
       balanced: { name: 'Balanced Plan', calories: 2000, protein: 150, carbs: 200, fat: 67 },
       high_protein: { name: 'Muscle Gain / Cut', calories: 2200, protein: 220, carbs: 192, fat: 61 },
@@ -479,7 +556,6 @@
       custom: { name: 'Custom Profile', calories: 2000, protein: 150, carbs: 200, fat: 65 }
     };
 
-    // Meal Definition Structure
     const MEAL_CATEGORIES = [
       { id: 'breakfast', name: 'Breakfast', icon: '☀️' },
       { id: 'lunch', name: 'Lunch', icon: '🥗' },
@@ -487,66 +563,163 @@
       { id: 'snack', name: 'Snacks & Extras', icon: '🍎' }
     ];
 
-    // App State
-    let appState = {
+    const STORAGE_KEY = 'macrofit_journal_v2';
+
+    // Global App State
+    let journalState = {
+      version: 2,
       presetId: 'balanced',
       targets: { calories: 2000, protein: 150, carbs: 200, fat: 67 },
-      meals: {
-        breakfast: [],
-        lunch: [],
-        dinner: [],
-        snack: []
-      }
+      customFoods: [],
+      // Stored by date string: 'YYYY-MM-DD' => { breakfast: [], lunch: [], dinner: [], snack: [] }
+      days: {}
     };
 
-    // Current category filter in preset library
+    let selectedDate = getTodayDateString();
     let currentCategoryFilter = 'all';
+    let fileHandle = null; // File System Access API handle if linked
 
-    // Local Storage Keys
-    const STORAGE_KEY = 'macrofit_tracker_state_v1';
-
-    // Initialization
-    function init() {
-      document.getElementById('year-label').textContent = new Date().getFullYear();
-      loadSavedState();
-      attachEventListeners();
-      renderPresetLibrary();
-      renderMealSections();
-      updateDashboardSummary();
+    // Helper: Formatted Today Date string YYYY-MM-DD
+    function getTodayDateString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
 
-    // Load from LocalStorage
-    function loadSavedState() {
+    // App Initialization
+    function init() {
+      document.getElementById('year-label').textContent = new Date().getFullYear();
+      loadState();
+      setupDateControls();
+      setupEventListeners();
+      renderPresetLibrary();
+      loadCurrentDay();
+    }
+
+    // Load State from LocalStorage
+    function loadState() {
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (parsed && parsed.targets && parsed.meals) {
-            appState = parsed;
+          if (parsed && parsed.days) {
+            journalState = Object.assign(journalState, parsed);
           }
         }
       } catch (err) {
-        console.error('Error loading state:', err);
+        console.error('Error loading journal state:', err);
       }
     }
 
-    // Save to LocalStorage
-    function saveState() {
+    // Save State to LocalStorage and optionally to linked Disk File
+    async function saveState() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(journalState));
       } catch (err) {
         console.error('Failed to save to local storage', err);
       }
+
+      // If linked to disk file via File System Access API
+      if (fileHandle) {
+        try {
+          const writable = await fileHandle.createWritable();
+          await writable.write(JSON.stringify(journalState, null, 2));
+          await writable.close();
+          updateSyncIndicator(true, `Synced: ${fileHandle.name}`);
+        } catch (err) {
+          console.warn('Could not auto-write to linked file', err);
+          updateSyncIndicator(false, 'Write Error - Relink File');
+        }
+      }
+    }
+
+    // Ensure day structure exists for the selected date
+    function getDayData(dateStr) {
+      if (!journalState.days[dateStr]) {
+        journalState.days[dateStr] = {
+          breakfast: [],
+          lunch: [],
+          dinner: [],
+          snack: []
+        };
+      }
+      return journalState.days[dateStr];
+    }
+
+    // Setup Date Picker and Navigation Controls
+    function setupDateControls() {
+      const dateInput = document.getElementById('journal-date-input');
+      dateInput.value = selectedDate;
+
+      dateInput.addEventListener('change', (e) => {
+        if (e.target.value) {
+          selectedDate = e.target.value;
+          loadCurrentDay();
+        }
+      });
+
+      document.getElementById('date-prev-btn').addEventListener('click', () => {
+        stepDate(-1);
+      });
+
+      document.getElementById('date-next-btn').addEventListener('click', () => {
+        stepDate(1);
+      });
+
+      document.getElementById('date-today-btn').addEventListener('click', () => {
+        selectedDate = getTodayDateString();
+        dateInput.value = selectedDate;
+        loadCurrentDay();
+      });
+    }
+
+    // Increment or decrement date by N days
+    function stepDate(daysDelta) {
+      const parts = selectedDate.split('-');
+      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      d.setDate(d.getDate() + daysDelta);
+
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      selectedDate = `${year}-${month}-${day}`;
+
+      document.getElementById('journal-date-input').value = selectedDate;
+      loadCurrentDay();
+    }
+
+    // Load & display active day
+    function loadCurrentDay() {
+      // Update label (Today, Yesterday, Tomorrow, or Date name)
+      const dayLabel = document.getElementById('journal-day-label');
+      const todayStr = getTodayDateString();
+
+      const parts = selectedDate.split('-');
+      const targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      const formattedDate = targetDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
+      if (selectedDate === todayStr) {
+        dayLabel.textContent = `Today • ${formattedDate}`;
+        dayLabel.className = 'text-xs sm:text-sm font-bold text-emerald-700 bg-emerald-100/70 px-3 py-1 rounded-xl';
+      } else {
+        dayLabel.textContent = formattedDate;
+        dayLabel.className = 'text-xs sm:text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-xl';
+      }
+
+      renderMealSections();
+      updateDashboardSummary();
     }
 
     // Update Dashboard Summary, Rings, and Progress Bars
     function updateDashboardSummary() {
+      const dayMeals = getDayData(selectedDate);
       let totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
       let itemCount = 0;
 
-      // Calculate totals across all meals
-      Object.keys(appState.meals).forEach(mealKey => {
-        appState.meals[mealKey].forEach(item => {
+      Object.keys(dayMeals).forEach(mealKey => {
+        (dayMeals[mealKey] || []).forEach(item => {
           totals.calories += Number(item.calories || 0);
           totals.protein += Number(item.protein || 0);
           totals.carbs += Number(item.carbs || 0);
@@ -555,18 +728,16 @@
         });
       });
 
-      // Round values
       totals.calories = Math.round(totals.calories);
       totals.protein = Math.round(totals.protein * 10) / 10;
       totals.carbs = Math.round(totals.carbs * 10) / 10;
       totals.fat = Math.round(totals.fat * 10) / 10;
 
-      // Update text values
       document.getElementById('cals-consumed').textContent = totals.calories.toLocaleString();
-      document.getElementById('cals-target').textContent = Number(appState.targets.calories).toLocaleString();
+      document.getElementById('cals-target').textContent = Number(journalState.targets.calories).toLocaleString();
       document.getElementById('stat-cals-consumed').textContent = totals.calories.toLocaleString();
 
-      const calsDiff = appState.targets.calories - totals.calories;
+      const calsDiff = journalState.targets.calories - totals.calories;
       const statusEl = document.getElementById('calorie-balance-status');
       const statLeftEl = document.getElementById('stat-cals-left');
 
@@ -586,81 +757,77 @@
       }
 
       // Protein Bar & Labels
-      const pPercent = Math.min(Math.round((totals.protein / (appState.targets.protein || 1)) * 100), 200);
+      const pPercent = Math.min(Math.round((totals.protein / (journalState.targets.protein || 1)) * 100), 200);
       document.getElementById('protein-consumed').textContent = totals.protein;
-      document.getElementById('protein-target').textContent = appState.targets.protein;
+      document.getElementById('protein-target').textContent = journalState.targets.protein;
       document.getElementById('protein-percent').textContent = `${pPercent}%`;
       const pBar = document.getElementById('protein-bar');
       pBar.style.width = `${Math.min(pPercent, 100)}%`;
-      if (totals.protein > appState.targets.protein) {
+      if (totals.protein > journalState.targets.protein) {
         pBar.className = 'h-full bg-amber-500 transition-width duration-300 rounded-full';
-        document.getElementById('protein-remaining-label').textContent = `${(totals.protein - appState.targets.protein).toFixed(1)}g over target`;
+        document.getElementById('protein-remaining-label').textContent = `${(totals.protein - journalState.targets.protein).toFixed(1)}g over target`;
       } else {
         pBar.className = 'h-full bg-blue-500 transition-width duration-300 rounded-full';
-        document.getElementById('protein-remaining-label').textContent = `${(appState.targets.protein - totals.protein).toFixed(1)}g remaining`;
+        document.getElementById('protein-remaining-label').textContent = `${(journalState.targets.protein - totals.protein).toFixed(1)}g remaining`;
       }
 
       // Carbs Bar & Labels
-      const cPercent = Math.min(Math.round((totals.carbs / (appState.targets.carbs || 1)) * 100), 200);
+      const cPercent = Math.min(Math.round((totals.carbs / (journalState.targets.carbs || 1)) * 100), 200);
       document.getElementById('carbs-consumed').textContent = totals.carbs;
-      document.getElementById('carbs-target').textContent = appState.targets.carbs;
+      document.getElementById('carbs-target').textContent = journalState.targets.carbs;
       document.getElementById('carbs-percent').textContent = `${cPercent}%`;
       const cBar = document.getElementById('carbs-bar');
       cBar.style.width = `${Math.min(cPercent, 100)}%`;
-      if (totals.carbs > appState.targets.carbs) {
+      if (totals.carbs > journalState.targets.carbs) {
         cBar.className = 'h-full bg-rose-500 transition-width duration-300 rounded-full';
-        document.getElementById('carbs-remaining-label').textContent = `${(totals.carbs - appState.targets.carbs).toFixed(1)}g over target`;
+        document.getElementById('carbs-remaining-label').textContent = `${(totals.carbs - journalState.targets.carbs).toFixed(1)}g over target`;
       } else {
         cBar.className = 'h-full bg-amber-500 transition-width duration-300 rounded-full';
-        document.getElementById('carbs-remaining-label').textContent = `${(appState.targets.carbs - totals.carbs).toFixed(1)}g remaining`;
+        document.getElementById('carbs-remaining-label').textContent = `${(journalState.targets.carbs - totals.carbs).toFixed(1)}g remaining`;
       }
 
       // Fat Bar & Labels
-      const fPercent = Math.min(Math.round((totals.fat / (appState.targets.fat || 1)) * 100), 200);
+      const fPercent = Math.min(Math.round((totals.fat / (journalState.targets.fat || 1)) * 100), 200);
       document.getElementById('fat-consumed').textContent = totals.fat;
-      document.getElementById('fat-target').textContent = appState.targets.fat;
+      document.getElementById('fat-target').textContent = journalState.targets.fat;
       document.getElementById('fat-percent').textContent = `${fPercent}%`;
       const fBar = document.getElementById('fat-bar');
       fBar.style.width = `${Math.min(fPercent, 100)}%`;
-      if (totals.fat > appState.targets.fat) {
+      if (totals.fat > journalState.targets.fat) {
         fBar.className = 'h-full bg-rose-600 transition-width duration-300 rounded-full';
-        document.getElementById('fat-remaining-label').textContent = `${(totals.fat - appState.targets.fat).toFixed(1)}g over target`;
+        document.getElementById('fat-remaining-label').textContent = `${(totals.fat - journalState.targets.fat).toFixed(1)}g over target`;
       } else {
         fBar.className = 'h-full bg-rose-500 transition-width duration-300 rounded-full';
-        document.getElementById('fat-remaining-label').textContent = `${(appState.targets.fat - totals.fat).toFixed(1)}g remaining`;
+        document.getElementById('fat-remaining-label').textContent = `${(journalState.targets.fat - totals.fat).toFixed(1)}g remaining`;
       }
 
       // Circular Ring Progress for Calories
       const ringCircle = document.getElementById('cals-ring-circle');
       const circumference = 2 * Math.PI * 26; // r=26 => ~163.36
-      const calRatio = Math.min(totals.calories / (appState.targets.calories || 1), 1);
+      const calRatio = Math.min(totals.calories / (journalState.targets.calories || 1), 1);
       const dashOffset = circumference - (calRatio * circumference);
       ringCircle.style.strokeDashoffset = dashOffset;
-      const ringPercentText = Math.round((totals.calories / (appState.targets.calories || 1)) * 100);
+      const ringPercentText = Math.round((totals.calories / (journalState.targets.calories || 1)) * 100);
       document.getElementById('cals-percent').textContent = `${ringPercentText}%`;
-      if (totals.calories > appState.targets.calories) {
-        ringCircle.setAttribute('stroke', '#e11d48'); // warning rose color
-      } else {
-        ringCircle.setAttribute('stroke', '#10b981'); // emerald
-      }
+      ringCircle.setAttribute('stroke', totals.calories > journalState.targets.calories ? '#e11d48' : '#10b981');
 
       // Strategy badge
-      const activeStrategy = STRATEGY_PRESETS[appState.presetId] || STRATEGY_PRESETS.custom;
+      const activeStrategy = STRATEGY_PRESETS[journalState.presetId] || STRATEGY_PRESETS.custom;
       document.getElementById('current-strategy-badge').textContent = activeStrategy.name;
 
       // Item counter
       document.getElementById('total-meal-items-count').textContent = `${itemCount} item${itemCount === 1 ? '' : 's'} logged`;
     }
 
-    // Render All Meal Category Containers
+    // Render Meal Categories
     function renderMealSections() {
+      const dayMeals = getDayData(selectedDate);
       const container = document.getElementById('meal-sections-container');
       container.innerHTML = '';
 
       MEAL_CATEGORIES.forEach(cat => {
-        const items = appState.meals[cat.id] || [];
+        const items = dayMeals[cat.id] || [];
         
-        // Calculate category macros
         let cals = 0, p = 0, c = 0, f = 0;
         items.forEach(it => {
           cals += Number(it.calories || 0);
@@ -680,7 +847,7 @@
         if (items.length === 0) {
           itemsHtml = `
             <div class="px-5 py-6 text-center text-slate-400 text-xs">
-              <p>No food added to ${cat.name.toLowerCase()} yet.</p>
+              <p>No food added to ${cat.name.toLowerCase()} for this date.</p>
               <button onclick="switchMealTabAndFocus('${cat.id}')" class="mt-2 text-emerald-600 hover:text-emerald-700 font-semibold inline-flex items-center">
                 + Add items
               </button>
@@ -694,7 +861,7 @@
                   <div class="flex-1">
                     <div class="flex items-center justify-between sm:justify-start space-x-2">
                       <span class="font-medium text-slate-800 text-sm tracking-tight">${escapeHtml(item.name)}</span>
-                      <span class="text-xs text-slate-400">(${item.servingLabel || (item.amount + ' ' + (item.unit || 'g'))})</span>
+                      <span class="text-xs text-slate-400">(${item.servingLabel || (item.multiplier + 'x')})</span>
                     </div>
                     <div class="flex items-center space-x-3 text-xs text-slate-500 mt-1">
                       <span class="font-semibold text-slate-700">${Math.round(item.calories)} kcal</span>
@@ -704,7 +871,6 @@
                     </div>
                   </div>
 
-                  <!-- Portion Adjustment and Delete Controls -->
                   <div class="flex items-center space-x-3 self-end sm:self-center">
                     <div class="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
                       <button onclick="adjustItemServing('${cat.id}', ${index}, -0.5)" title="Decrease serving" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-white rounded font-bold text-xs transition">-</button>
@@ -756,17 +922,20 @@
       if (select) {
         select.value = categoryKey;
         document.getElementById('food-search-input').focus();
-        showToast(`Target meal set to ${categoryKey.toUpperCase()}`, 'info');
+        showToast(`Selected meal: ${categoryKey.toUpperCase()}`, 'info');
       }
     };
 
-    // Render Preset Food Library
+    // Render Preset & Custom Food Library
     function renderPresetLibrary(searchQuery = '') {
       const listContainer = document.getElementById('preset-items-list');
       listContainer.innerHTML = '';
 
       const query = searchQuery.trim().toLowerCase();
-      const filtered = FOOD_DATABASE.filter(item => {
+      // Combine built-in foods with user-saved custom foods
+      const allFoods = [...(journalState.customFoods || []), ...BUILTIN_FOOD_DATABASE];
+
+      const filtered = allFoods.filter(item => {
         const matchesQuery = item.name.toLowerCase().includes(query);
         const matchesCategory = (currentCategoryFilter === 'all') || (item.category === currentCategoryFilter);
         return matchesQuery && matchesCategory;
@@ -775,19 +944,24 @@
       if (filtered.length === 0) {
         listContainer.innerHTML = `
           <div class="p-6 text-center text-xs text-slate-400">
-            No matching food items found. Try the "Custom Entry" tab!
+            No foods found matching your search. Try adding one under "+ Custom Item".
           </div>
         `;
         return;
       }
 
       filtered.forEach(food => {
+        const isCustom = !!food.isCustom;
         const el = document.createElement('div');
         el.className = 'p-3 rounded-xl border border-slate-200/90 hover:border-emerald-500 hover:bg-emerald-50/20 bg-white transition flex items-center justify-between gap-2 shadow-xs';
         
         el.innerHTML = `
           <div class="flex-1 min-w-0">
-            <h4 class="font-medium text-xs sm:text-sm text-slate-900 truncate">${escapeHtml(food.name)}</h4>
+            <div class="flex items-center space-x-1.5">
+              <h4 class="font-medium text-xs sm:text-sm text-slate-900 truncate">${escapeHtml(food.name)}</h4>
+              ${food.category === 'staples' ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">AU</span>' : ''}
+              ${isCustom ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800">Custom</span>' : ''}
+            </div>
             <div class="text-[11px] text-slate-500 mt-0.5">
               <span>${food.baseAmount} ${food.unit}</span> &bull; 
               <span class="font-semibold text-slate-700">${food.calories} kcal</span>
@@ -808,12 +982,15 @@
       });
     }
 
-    // Add Preset Item to currently selected meal
+    // Add item to active date's meal
     window.addPresetItemToActiveMeal = function(foodId) {
-      const food = FOOD_DATABASE.find(f => f.id === foodId);
+      const allFoods = [...(journalState.customFoods || []), ...BUILTIN_FOOD_DATABASE];
+      const food = allFoods.find(f => f.id === foodId);
       if (!food) return;
 
       const targetMeal = document.getElementById('active-meal-select').value;
+      const dayMeals = getDayData(selectedDate);
+
       const newItem = {
         name: food.name,
         servingLabel: `${food.baseAmount} ${food.unit}`,
@@ -830,7 +1007,7 @@
         fat: food.fat
       };
 
-      appState.meals[targetMeal].push(newItem);
+      dayMeals[targetMeal].push(newItem);
       saveState();
       renderMealSections();
       updateDashboardSummary();
@@ -839,7 +1016,8 @@
 
     // Adjust Item Portion Multiplier
     window.adjustItemServing = function(mealCategory, index, delta) {
-      const item = appState.meals[mealCategory][index];
+      const dayMeals = getDayData(selectedDate);
+      const item = dayMeals[mealCategory][index];
       if (!item) return;
 
       let currentMultiplier = item.multiplier || 1;
@@ -864,8 +1042,9 @@
 
     // Delete item from meal
     window.deleteMealItem = function(mealCategory, index) {
-      if (!appState.meals[mealCategory]) return;
-      const removed = appState.meals[mealCategory].splice(index, 1);
+      const dayMeals = getDayData(selectedDate);
+      if (!dayMeals[mealCategory]) return;
+      const removed = dayMeals[mealCategory].splice(index, 1);
       saveState();
       renderMealSections();
       updateDashboardSummary();
@@ -874,9 +1053,9 @@
       }
     };
 
-    // Event Listeners setup
-    function attachEventListeners() {
-      // Tab switcher in Add to Meal sidebar
+    // Event listeners
+    function setupEventListeners() {
+      // Sidebar tabs
       const tabPresetsBtn = document.getElementById('tab-presets-btn');
       const tabCustomBtn = document.getElementById('tab-custom-btn');
       const viewPresets = document.getElementById('view-presets');
@@ -896,17 +1075,13 @@
         viewPresets.classList.add('hidden');
       });
 
-      // Preset food search input
+      // Search
       const searchInput = document.getElementById('food-search-input');
       const clearSearchBtn = document.getElementById('clear-search-btn');
 
       searchInput.addEventListener('input', (e) => {
         const query = e.target.value;
-        if (query.length > 0) {
-          clearSearchBtn.classList.remove('hidden');
-        } else {
-          clearSearchBtn.classList.add('hidden');
-        }
+        clearSearchBtn.classList.toggle('hidden', query.length === 0);
         renderPresetLibrary(query);
       });
 
@@ -917,7 +1092,7 @@
         searchInput.focus();
       });
 
-      // Preset category filters (pills)
+      // Food category pills
       document.querySelectorAll('.cat-pill').forEach(btn => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('.cat-pill').forEach(b => {
@@ -931,21 +1106,19 @@
         });
       });
 
-      // Submit Custom Item
+      // Custom food submission
       document.getElementById('submit-custom-item-btn').addEventListener('click', handleCustomItemSubmit);
 
-      // Reset Day Modal / Prompt
+      // Reset Current Day
       document.getElementById('reset-day-btn').addEventListener('click', () => {
-        if (confirmReset()) {
-          appState.meals = { breakfast: [], lunch: [], dinner: [], snack: [] };
-          saveState();
-          renderMealSections();
-          updateDashboardSummary();
-          showToast('Day cleared. Ready for fresh logging!', 'info');
-        }
+        journalState.days[selectedDate] = { breakfast: [], lunch: [], dinner: [], snack: [] };
+        saveState();
+        renderMealSections();
+        updateDashboardSummary();
+        showToast(`Cleared food log for ${selectedDate}`, 'info');
       });
 
-      // Modal Target Controls
+      // Targets Modal
       const modal = document.getElementById('targets-modal');
       const openSettingsBtn = document.getElementById('open-settings-btn');
       const quickChangeBtn = document.getElementById('quick-change-target-btn');
@@ -957,10 +1130,7 @@
         populateTargetInputs();
         modal.classList.remove('hidden');
       };
-
-      const closeModal = () => {
-        modal.classList.add('hidden');
-      };
+      const closeModal = () => modal.classList.add('hidden');
 
       openSettingsBtn.addEventListener('click', openModal);
       quickChangeBtn.addEventListener('click', openModal);
@@ -968,40 +1138,59 @@
       cancelTargetsBtn.addEventListener('click', closeModal);
       saveTargetsBtn.addEventListener('click', saveCustomTargets);
 
-      // Strategy Preset selection buttons inside modal
       document.querySelectorAll('.preset-choice-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          const presetKey = btn.dataset.preset;
-          const conf = STRATEGY_PRESETS[presetKey];
+          const conf = STRATEGY_PRESETS[btn.dataset.preset];
           if (conf) {
             document.getElementById('input-target-cals').value = conf.calories;
             document.getElementById('input-target-protein').value = conf.protein;
             document.getElementById('input-target-carbs').value = conf.carbs;
             document.getElementById('input-target-fat').value = conf.fat;
             calculateModalMacroCalories();
-
-            // highlight selection
             document.querySelectorAll('.preset-choice-btn').forEach(b => {
               b.classList.remove('border-emerald-500', 'bg-emerald-50/50', 'text-emerald-800');
               b.classList.add('border-slate-200', 'text-slate-700');
             });
             btn.classList.add('border-emerald-500', 'bg-emerald-50/50', 'text-emerald-800');
             btn.classList.remove('border-slate-200', 'text-slate-700');
-            appState.presetId = presetKey;
+            journalState.presetId = btn.dataset.preset;
           }
         });
       });
 
-      // Macro calculation live update in target modal
       ['input-target-protein', 'input-target-carbs', 'input-target-fat'].forEach(id => {
         document.getElementById(id).addEventListener('input', calculateModalMacroCalories);
       });
 
-      // Copy summary report to clipboard
-      document.getElementById('export-summary-btn').addEventListener('click', copySummaryReport);
+      // Data & Backup Dropdown
+      const backupBtn = document.getElementById('backup-menu-btn');
+      const backupDropdown = document.getElementById('backup-dropdown');
+
+      backupBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        backupDropdown.classList.toggle('hidden');
+      });
+
+      window.addEventListener('click', () => {
+        if (!backupDropdown.classList.contains('hidden')) {
+          backupDropdown.classList.add('hidden');
+        }
+      });
+
+      // File System Access API Linking
+      document.getElementById('link-file-btn').addEventListener('click', handleFileLinkClick);
+
+      // Export / Import Handlers
+      document.getElementById('export-json-btn').addEventListener('click', exportFullBackupJSON);
+      document.getElementById('import-json-btn').addEventListener('click', () => {
+        document.getElementById('import-file-input').click();
+      });
+      document.getElementById('import-file-input').addEventListener('change', handleImportFileInput);
+      document.getElementById('export-csv-btn').addEventListener('click', exportCurrentDayCSV);
+      document.getElementById('copy-summary-btn').addEventListener('click', copySummaryReport);
     }
 
-    // Modal Macro Calories helper
+    // Modal Macro Calculation
     function calculateModalMacroCalories() {
       const p = parseFloat(document.getElementById('input-target-protein').value) || 0;
       const c = parseFloat(document.getElementById('input-target-carbs').value) || 0;
@@ -1010,16 +1199,14 @@
       document.getElementById('calculated-macro-cals').textContent = total.toLocaleString();
     }
 
-    // Populate modal inputs with current targets
     function populateTargetInputs() {
-      document.getElementById('input-target-cals').value = appState.targets.calories;
-      document.getElementById('input-target-protein').value = appState.targets.protein;
-      document.getElementById('input-target-carbs').value = appState.targets.carbs;
-      document.getElementById('input-target-fat').value = appState.targets.fat;
+      document.getElementById('input-target-cals').value = journalState.targets.calories;
+      document.getElementById('input-target-protein').value = journalState.targets.protein;
+      document.getElementById('input-target-carbs').value = journalState.targets.carbs;
+      document.getElementById('input-target-fat').value = journalState.targets.fat;
       calculateModalMacroCalories();
     }
 
-    // Save target changes from modal
     function saveCustomTargets() {
       const cals = parseInt(document.getElementById('input-target-cals').value, 10);
       const protein = parseInt(document.getElementById('input-target-protein').value, 10);
@@ -1031,7 +1218,7 @@
         return;
       }
 
-      appState.targets = {
+      journalState.targets = {
         calories: cals,
         protein: isNaN(protein) ? 0 : protein,
         carbs: isNaN(carbs) ? 0 : carbs,
@@ -1044,7 +1231,7 @@
       showToast('Daily macro goals updated!', 'success');
     }
 
-    // Handle Custom Food addition
+    // Create & Save Custom Food Item
     function handleCustomItemSubmit() {
       const nameInput = document.getElementById('custom-name');
       const unitInput = document.getElementById('custom-unit');
@@ -1071,45 +1258,171 @@
         return;
       }
 
+      // Add to reusable custom foods library
+      const customFoodRecord = {
+        id: 'custom_' + Date.now(),
+        name,
+        category: 'custom',
+        unit,
+        baseAmount: 1,
+        calories: cals,
+        protein,
+        carbs,
+        fat,
+        isCustom: true
+      };
+
+      journalState.customFoods = journalState.customFoods || [];
+      journalState.customFoods.unshift(customFoodRecord);
+
+      // Log immediately to active meal
       const targetMeal = document.getElementById('active-meal-select').value;
-      const newItem = {
+      const dayMeals = getDayData(selectedDate);
+      dayMeals[targetMeal].push({
         name,
         servingLabel: unit,
         baseAmount: 1,
-        unit: unit,
+        unit,
         multiplier: 1,
         baseCalories: cals,
         baseProtein: protein,
         baseCarbs: carbs,
         baseFat: fat,
         calories: cals,
-        protein: protein,
-        carbs: carbs,
-        fat: fat
-      };
+        protein,
+        carbs,
+        fat
+      });
 
-      appState.meals[targetMeal].push(newItem);
       saveState();
+      renderPresetLibrary();
       renderMealSections();
       updateDashboardSummary();
 
-      // Reset fields
       nameInput.value = '';
       calsInput.value = '';
       proteinInput.value = '';
       carbsInput.value = '';
       fatInput.value = '';
-      showToast(`Added ${name} to ${targetMeal.toUpperCase()}!`, 'success');
+
+      showToast(`Saved and added "${name}" to ${targetMeal.toUpperCase()}!`, 'success');
+    }
+
+    // Direct File System Access API handler
+    async function handleFileLinkClick() {
+      if (!('showSaveFilePicker' in window)) {
+        showToast('Direct file sync is supported in Chrome, Edge & Opera. Use Export/Import for other browsers.', 'info');
+        exportFullBackupJSON();
+        return;
+      }
+
+      try {
+        const options = {
+          suggestedName: 'macrofit_journal_log.json',
+          types: [{
+            description: 'JSON Macro Journal Data',
+            accept: { 'application/json': ['.json'] }
+          }]
+        };
+        fileHandle = await window.showSaveFilePicker(options);
+        await saveState();
+        updateSyncIndicator(true, `File Linked: ${fileHandle.name}`);
+        showToast(`Linked directly to ${fileHandle.name}! Every change will write to disk.`, 'success');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error(err);
+          showToast('Could not link file', 'error');
+        }
+      }
+    }
+
+    function updateSyncIndicator(isLinked, text) {
+      const ind = document.getElementById('sync-status-indicator');
+      const label = document.getElementById('sync-status-text');
+      const btnLabel = document.getElementById('link-file-label');
+
+      if (isLinked) {
+        ind.className = 'inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        label.textContent = text;
+        btnLabel.textContent = 'Linked to Disk';
+      } else {
+        ind.className = 'inline-block w-2 h-2 rounded-full bg-amber-500';
+        label.textContent = text;
+      }
+    }
+
+    // Export Full Backup JSON
+    function exportFullBackupJSON() {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(journalState, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `macrofit_backup_${getTodayDateString()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('Full backup downloaded!', 'success');
+    }
+
+    // Handle Import Backup File
+    function handleImportFileInput(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          if (parsed && parsed.days) {
+            journalState = parsed;
+            saveState();
+            loadCurrentDay();
+            renderPresetLibrary();
+            showToast('Backup successfully restored!', 'success');
+          } else {
+            showToast('Invalid backup file structure', 'error');
+          }
+        } catch (err) {
+          showToast('Failed to parse backup JSON file', 'error');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    // Export Current Day to CSV
+    function exportCurrentDayCSV() {
+      const dayMeals = getDayData(selectedDate);
+      let csv = 'Date,Meal Category,Food Item,Serving,Calories (kcal),Protein (g),Carbohydrates (g),Fat (g)\r\n';
+
+      MEAL_CATEGORIES.forEach(cat => {
+        const items = dayMeals[cat.id] || [];
+        items.forEach(it => {
+          const safeName = `"${(it.name || '').replace(/"/g, '""')}"`;
+          const safeServing = `"${(it.servingLabel || '').replace(/"/g, '""')}"`;
+          csv += `${selectedDate},${cat.name},${safeName},${safeServing},${it.calories},${it.protein},${it.carbs},${it.fat}\r\n`;
+        });
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `macrofit_log_${selectedDate}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showToast(`Exported CSV for ${selectedDate}!`, 'success');
     }
 
     // Copy Summary Report to Clipboard
     function copySummaryReport() {
+      const dayMeals = getDayData(selectedDate);
       let totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-      let report = `MacroFit Daily Nutrition Summary (${new Date().toLocaleDateString()})\n`;
+      let report = `MacroFit Daily Nutrition Summary (${selectedDate})\n`;
       report += `===================================\n\n`;
 
       MEAL_CATEGORIES.forEach(cat => {
-        const items = appState.meals[cat.id] || [];
+        const items = dayMeals[cat.id] || [];
         report += `[${cat.name.toUpperCase()}]\n`;
         if (items.length === 0) {
           report += `  - None\n`;
@@ -1131,29 +1444,22 @@
       totals.fat = Math.round(totals.fat * 10) / 10;
 
       report += `TOTAL CONSUMED:\n`;
-      report += `Calories: ${totals.calories} / ${appState.targets.calories} kcal\n`;
-      report += `Protein:  ${totals.protein} / ${appState.targets.protein} g\n`;
-      report += `Carbs:    ${totals.carbs} / ${appState.targets.carbs} g\n`;
-      report += `Fats:     ${totals.fat} / ${appState.targets.fat} g\n`;
+      report += `Calories: ${totals.calories} / ${journalState.targets.calories} kcal\n`;
+      report += `Protein:  ${totals.protein} / ${journalState.targets.protein} g\n`;
+      report += `Carbs:    ${totals.carbs} / ${journalState.targets.carbs} g\n`;
+      report += `Fats:     ${totals.fat} / ${journalState.targets.fat} g\n`;
 
-      // Copy using document.execCommand fallback for iframe safety
       const dummy = document.createElement('textarea');
       dummy.value = report;
       document.body.appendChild(dummy);
       dummy.select();
       try {
         document.execCommand('copy');
-        showToast('Daily summary copied to clipboard!', 'success');
+        showToast('Summary copied to clipboard!', 'success');
       } catch (err) {
         showToast('Unable to copy to clipboard', 'error');
       }
       document.body.removeChild(dummy);
-    }
-
-    // Non-native confirmation modal replacement
-    function confirmReset() {
-      // In accordance with zero native alert/confirm rules, we use inline custom dialog
-      return window.confirm('Are you sure you want to clear all meals for today? Targets will be retained.');
     }
 
     // Toast Notifications
@@ -1167,13 +1473,10 @@
       if (type === 'info') bgStyle = 'bg-slate-800 text-white';
 
       toast.className = `${bgStyle} px-4 py-2.5 rounded-xl shadow-lg text-xs font-semibold flex items-center space-x-2 transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto`;
-      toast.innerHTML = `
-        <span>${escapeHtml(message)}</span>
-      `;
+      toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
 
       container.appendChild(toast);
 
-      // Trigger animation
       requestAnimationFrame(() => {
         toast.classList.remove('translate-y-2', 'opacity-0');
       });
@@ -1184,7 +1487,6 @@
       }, 3000);
     }
 
-    // Safe HTML Escaping helper
     function escapeHtml(text) {
       if (!text) return '';
       const div = document.createElement('div');
@@ -1192,7 +1494,6 @@
       return div.innerHTML;
     }
 
-    // Kickoff on DOM Load
     window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
