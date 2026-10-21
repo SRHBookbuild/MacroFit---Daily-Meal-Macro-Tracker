@@ -179,6 +179,7 @@
         </div>
       </div>
     </section>
+    <section class="bg-white border border-slate-200 rounded-2xl p-4 mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-bold">Daily Weight</h2><p class="text-xs text-slate-500">For the selected date, in kilograms</p></div><div class="flex items-center gap-2"><input type="number" id="daily-weight" min="20" max="400" step="0.1" placeholder="98.0" aria-label="Daily weight kg" class="w-24 border rounded-lg p-2 text-sm"><span class="text-xs">kg</span><button id="weight-save" class="bg-emerald-600 text-white rounded-lg p-2 text-xs">Save</button><button id="weight-clear" class="border rounded-lg p-2 text-xs">Clear</button></div></section>
     <!-- Date Journaling Bar -->
     <div class="bg-white rounded-2xl p-4 sm:px-6 shadow-sm border border-slate-200/80 mb-6 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center space-x-2">
@@ -330,6 +331,7 @@
       </div>
     </div>
 
+    <div class="bg-white border rounded-xl p-4 mb-5 flex gap-6 text-sm"><div>Daily sugar <strong id="sugar-total">0g</strong></div><div>Saturated fat <strong id="satfat-total">0g</strong></div><small class="text-slate-500">Unspecified values excluded</small></div>
     <!-- Main Content Layout: Meals on Left, Food Picker on Right -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       
@@ -441,6 +443,7 @@
               </div>
             </div>
 
+            <div class="grid grid-cols-2 gap-2"><label class="text-xs">Sugar (g)<input type="number" min="0" step="0.1" id="custom-sugar" class="w-full border rounded-lg p-2" placeholder="Optional"></label><label class="text-xs">Saturated fat (g)<input type="number" min="0" step="0.1" id="custom-satfat" class="w-full border rounded-lg p-2" placeholder="Optional"></label></div>
             <div class="pt-2">
               <button id="submit-custom-item-btn" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center space-x-2">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -476,10 +479,11 @@
         <p class="text-xs text-slate-500 mb-4">Green bars represent logged calorie totals. Your current calorie target is shown in the summary.</p>
         <div id="weekly-chart" class="flex items-end gap-2 h-56" role="img" aria-label="Weekly calorie bar chart"></div>
       </div>
+      <div class="bg-white border rounded-2xl p-5"><h2 class="font-bold">Weekly Weight Trend</h2><p id="weight-week-summary" class="text-sm text-slate-500 my-2"></p><div id="weight-week-chart"></div></div>
       <div class="bg-white border border-slate-200 rounded-2xl p-5 overflow-x-auto">
         <h2 class="font-bold text-slate-800 mb-4">Daily macro breakdown</h2>
         <table class="min-w-full text-sm text-left">
-          <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">Day</th><th class="pr-4">Calories</th><th class="pr-4">Protein</th><th class="pr-4">Carbs</th><th>Fat</th></tr></thead>
+          <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">Day</th><th class="pr-4">Calories</th><th class="pr-4">Protein</th><th class="pr-4">Carbs</th><th>Fat</th><th>Sugar</th><th>Sat. fat</th></tr></thead>
           <tbody id="weekly-table" class="divide-y divide-slate-100"></tbody>
         </table>
       </div>
@@ -625,7 +629,7 @@
       targets: { calories: 2000, protein: 150, carbs: 200, fat: 67 },
       customFoods: [],
       // Stored by date string: 'YYYY-MM-DD' => { breakfast: [], lunch: [], dinner: [], snack: [] }
-      days: {}
+      days: {}, weights: {}
     };
 
     let selectedDate = getTodayDateString();
@@ -658,12 +662,12 @@
     }
     function totalsForStoredDay(key) {
       const day = journalState.days && journalState.days[key];
-      const totals = {calories:0,protein:0,carbs:0,fat:0,count:0};
+      const totals = {calories:0,protein:0,carbs:0,fat:0,sugar:0,satFat:0,count:0};
       if (!day || typeof day !== 'object') return totals;
       MEAL_CATEGORIES.forEach(cat => {
         const items = Array.isArray(day[cat.id]) ? day[cat.id] : [];
         items.forEach(it => {
-          ['calories','protein','carbs','fat'].forEach(n => { totals[n] += Number(it[n]) || 0; });
+          ['calories','protein','carbs','fat','sugar','satFat'].forEach(n => { totals[n] += Number(it[n]) || 0; });
           totals.count++;
         });
       });
@@ -690,6 +694,17 @@
         const d = new Date(start);d.setDate(d.getDate()+i);
         const key=journalDateKey(d);return {key,date:d,...totalsForStoredDay(key)};
       });
+      const weights=rows.map((r,i)=>({i,value:journalState.weights?.[r.key]})).filter(x=>Number.isFinite(Number(x.value))&&Number(x.value)>0);
+      const summary=document.getElementById('weight-week-summary');
+      if(weights.length){
+        const avg=weights.reduce((a,x)=>a+Number(x.value),0)/weights.length;
+        const delta=weights.length>1?Number(weights[weights.length-1].value)-Number(weights[0].value):null;
+        summary.textContent='Average '+avg.toFixed(1)+' kg · '+weights.length+' weigh-in(s)'+(delta===null?'':' · Change '+(delta>0?'+':'')+delta.toFixed(1)+' kg');
+        const vals=weights.map(x=>Number(x.value));
+        const lo=Math.min(...vals)-0.5,hi=Math.max(...vals)+0.5;
+        const pts=weights.map(x=>({x:35+x.i*65,y:135-110*(Number(x.value)-lo)/(hi-lo),value:Number(x.value)}));
+        document.getElementById('weight-week-chart').innerHTML='<svg viewBox="0 0 470 175" class="w-full max-w-2xl" role="img" aria-label="Weight chart in kilograms"><polyline points="'+pts.map(p=>p.x+','+p.y).join(' ')+'" fill="none" stroke="#059669" stroke-width="3"/>'+pts.map(p=>'<circle cx="'+p.x+'" cy="'+p.y+'" r="4" fill="#059669"/><text x="'+p.x+'" y="'+(p.y-12)+'" font-size="11" text-anchor="middle">'+p.value.toFixed(1)+'</text>').join('')+rows.map((r,i)=>'<text x="'+(35+i*65)+'" y="160" font-size="11" text-anchor="middle">'+r.date.toLocaleDateString('en-AU',{weekday:'short'})+'</text>').join('')+'</svg>';
+      }else{summary.textContent='No weight entries this week';document.getElementById('weight-week-chart').innerHTML='';}
       const logged=rows.filter(x=>x.count>0);
       const sum=name=>logged.reduce((acc,x)=>acc+x[name],0);
       const avg=name=>logged.length?sum(name)/logged.length:0;
@@ -719,7 +734,22 @@
       chart.setAttribute('aria-label','Calorie totals: '+rows.map(x=>x.date.toLocaleDateString('en-AU',{weekday:'short'})+' '+(x.count?fmt(x.calories)+' kcal':'not logged')).join(', ')+'. Target '+fmt(target)+' kcal');
       document.getElementById('weekly-table').innerHTML=rows.map(x=>
         '<tr><td class="py-3 pr-4 font-semibold">'+x.date.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+'</td>'+
-        (x.count?['calories','protein','carbs','fat'].map((n,i)=>'<td class="pr-4">'+(i===0?fmt(x[n]):x[n].toFixed(1)+'g')+'</td>').join(''):'<td colspan="4" class="text-slate-400">No entries</td>')+'</tr>').join('');
+        (x.count?['calories','protein','carbs','fat','sugar','satFat'].map((n,i)=>'<td class="pr-4">'+(i===0?fmt(x[n]):x[n].toFixed(1)+'g')+'</td>').join(''):'<td colspan="6" class="text-slate-400">No entries</td>')+'</tr>').join('');
+    }
+    function initWeightControls(){
+      document.getElementById('weight-save').onclick=()=>{
+        const x=Number(document.getElementById('daily-weight').value);
+        if(!Number.isFinite(x)||x<20||x>400){showToast('Enter weight between 20 and 400 kg','error');return;}
+        journalState.weights=journalState.weights||{};
+        journalState.weights[selectedDate]=Math.round(x*10)/10;
+        saveState();showToast('Weight saved','success');
+      };
+      document.getElementById('weight-clear').onclick=()=>{
+        if(!confirm('Clear weight for this date?'))return;
+        if(journalState.weights)delete journalState.weights[selectedDate];
+        document.getElementById('daily-weight').value='';
+        saveState();showToast('Weight cleared','success');
+      };
     }
     function initWeeklyControls(){
       document.getElementById('daily-view-btn').addEventListener('click',()=>setJournalView('daily'));
@@ -736,6 +766,7 @@
       setupDateControls();
       setupEventListeners();
       initWeeklyControls();
+      initWeightControls();
       renderPresetLibrary();
       loadCurrentDay();
       if (window.MacroFitCloud) window.MacroFitCloud.init();
@@ -855,12 +886,13 @@
 
       renderMealSections();
       updateDashboardSummary();
+      document.getElementById("daily-weight").value=journalState.weights?.[selectedDate] ?? "";
     }
 
     // Update Dashboard Summary, Rings, and Progress Bars
     function updateDashboardSummary() {
       const dayMeals = getDayData(selectedDate);
-      let totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      let totals = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar:0,satFat:0 };
       let itemCount = 0;
 
       Object.keys(dayMeals).forEach(mealKey => {
@@ -869,10 +901,14 @@
           totals.protein += Number(item.protein || 0);
           totals.carbs += Number(item.carbs || 0);
           totals.fat += Number(item.fat || 0);
+          totals.sugar += Number(item.sugar || 0);
+          totals.satFat += Number(item.satFat || 0);
           itemCount++;
         });
       });
 
+      document.getElementById("sugar-total").textContent=totals.sugar.toFixed(1)+"g";
+      document.getElementById("satfat-total").textContent=totals.satFat.toFixed(1)+"g";
       totals.calories = Math.round(totals.calories);
       totals.protein = Math.round(totals.protein * 10) / 10;
       totals.carbs = Math.round(totals.carbs * 10) / 10;
@@ -1114,7 +1150,7 @@
             <div class="flex items-center space-x-2 text-[10px] text-slate-500 mt-1">
               <span class="text-blue-600 font-semibold">P: ${food.protein}g</span>
               <span class="text-amber-600 font-semibold">C: ${food.carbs}g</span>
-              <span class="text-rose-600 font-semibold">F: ${food.fat}g</span>
+              <span class="text-rose-600 font-semibold">F: ${food.fat}g</span>${food.sugar != null ? `<span>Sugar: ${food.sugar}g</span>` : ""}${food.satFat != null ? `<span>Sat: ${food.satFat}g</span>` : ""}
             </div>
           </div>
           <button onclick="addPresetItemToActiveMeal('${food.id}')" class="shrink-0 p-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition shadow-sm font-semibold text-xs flex items-center justify-center">
@@ -1146,6 +1182,8 @@
         baseProtein: food.protein,
         baseCarbs: food.carbs,
         baseFat: food.fat,
+        baseSugar: food.sugar ?? null, baseSatFat: food.satFat ?? null,
+        sugar: food.sugar ?? null, satFat: food.satFat ?? null,
         calories: food.calories,
         protein: food.protein,
         carbs: food.carbs,
@@ -1173,6 +1211,8 @@
       item.protein = Math.round((item.baseProtein * newMultiplier) * 10) / 10;
       item.carbs = Math.round((item.baseCarbs * newMultiplier) * 10) / 10;
       item.fat = Math.round((item.baseFat * newMultiplier) * 10) / 10;
+      item.sugar=item.baseSugar==null?null:Math.round(item.baseSugar*newMultiplier*10)/10;
+      item.satFat=item.baseSatFat==null?null:Math.round(item.baseSatFat*newMultiplier*10)/10;
       
       if (item.baseAmount) {
         item.servingLabel = `${(item.baseAmount * newMultiplier).toFixed(0)} ${item.unit}`;
@@ -1391,6 +1431,11 @@
       const protein = parseFloat(proteinInput.value) || 0;
       const carbs = parseFloat(carbsInput.value) || 0;
       const fat = parseFloat(fatInput.value) || 0;
+      const sugarText=document.getElementById("custom-sugar").value;
+      const satText=document.getElementById("custom-satfat").value;
+      const sugar=sugarText===""?null:Number(sugarText);
+      const satFat=satText===""?null:Number(satText);
+      if((sugar!==null&&(!Number.isFinite(sugar)||sugar<0))||(satFat!==null&&(!Number.isFinite(satFat)||satFat<0))){showToast("Check sugar and saturated fat","error");return;}
 
       if (!name) {
         showToast('Please enter an item name', 'error');
@@ -1414,6 +1459,7 @@
         protein,
         carbs,
         fat,
+        sugar, satFat,
         isCustom: true
       };
 
@@ -1433,10 +1479,12 @@
         baseProtein: protein,
         baseCarbs: carbs,
         baseFat: fat,
+        baseSugar:sugar, baseSatFat:satFat,
         calories: cals,
         protein,
         carbs,
-        fat
+        fat,
+        sugar,satFat
       });
 
       saveState();
@@ -1449,6 +1497,8 @@
       proteinInput.value = '';
       carbsInput.value = '';
       fatInput.value = '';
+      document.getElementById('custom-sugar').value='';
+      document.getElementById('custom-satfat').value='';
 
       showToast(`Saved and added "${name}" to ${targetMeal.toUpperCase()}!`, 'success');
     }
