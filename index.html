@@ -1150,7 +1150,7 @@
             <div class="flex items-center space-x-2 text-[10px] text-slate-500 mt-1">
               <span class="text-blue-600 font-semibold">P: ${food.protein}g</span>
               <span class="text-amber-600 font-semibold">C: ${food.carbs}g</span>
-              <span class="text-rose-600 font-semibold">F: ${food.fat}g</span>
+              <span class="text-rose-600 font-semibold">F: ${food.fat}g</span>${food.sugar != null ? `<span>Sugar: ${food.sugar}g</span>` : ""}${food.satFat != null ? `<span>Sat: ${food.satFat}g</span>` : ""}
             </div>
           </div>
           <button onclick="addPresetItemToActiveMeal('${food.id}')" class="shrink-0 p-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition shadow-sm font-semibold text-xs flex items-center justify-center">
@@ -1182,6 +1182,8 @@
         baseProtein: food.protein,
         baseCarbs: food.carbs,
         baseFat: food.fat,
+        baseSugar: food.sugar ?? null, baseSatFat: food.satFat ?? null,
+        sugar: food.sugar ?? null, satFat: food.satFat ?? null,
         calories: food.calories,
         protein: food.protein,
         carbs: food.carbs,
@@ -1209,6 +1211,8 @@
       item.protein = Math.round((item.baseProtein * newMultiplier) * 10) / 10;
       item.carbs = Math.round((item.baseCarbs * newMultiplier) * 10) / 10;
       item.fat = Math.round((item.baseFat * newMultiplier) * 10) / 10;
+      item.sugar=item.baseSugar==null?null:Math.round(item.baseSugar*newMultiplier*10)/10;
+      item.satFat=item.baseSatFat==null?null:Math.round(item.baseSatFat*newMultiplier*10)/10;
       
       if (item.baseAmount) {
         item.servingLabel = `${(item.baseAmount * newMultiplier).toFixed(0)} ${item.unit}`;
@@ -1427,6 +1431,11 @@
       const protein = parseFloat(proteinInput.value) || 0;
       const carbs = parseFloat(carbsInput.value) || 0;
       const fat = parseFloat(fatInput.value) || 0;
+      const sugarText=document.getElementById("custom-sugar").value;
+      const satText=document.getElementById("custom-satfat").value;
+      const sugar=sugarText===""?null:Number(sugarText);
+      const satFat=satText===""?null:Number(satText);
+      if((sugar!==null&&(!Number.isFinite(sugar)||sugar<0))||(satFat!==null&&(!Number.isFinite(satFat)||satFat<0))){showToast("Check sugar and saturated fat","error");return;}
 
       if (!name) {
         showToast('Please enter an item name', 'error');
@@ -1450,6 +1459,7 @@
         protein,
         carbs,
         fat,
+        sugar, satFat,
         isCustom: true
       };
 
@@ -1469,10 +1479,12 @@
         baseProtein: protein,
         baseCarbs: carbs,
         baseFat: fat,
+        baseSugar:sugar, baseSatFat:satFat,
         calories: cals,
         protein,
         carbs,
-        fat
+        fat,
+        sugar,satFat
       });
 
       saveState();
@@ -1485,6 +1497,8 @@
       proteinInput.value = '';
       carbsInput.value = '';
       fatInput.value = '';
+      document.getElementById('custom-sugar').value='';
+      document.getElementById('custom-satfat').value='';
 
       showToast(`Saved and added "${name}" to ${targetMeal.toUpperCase()}!`, 'success');
     }
