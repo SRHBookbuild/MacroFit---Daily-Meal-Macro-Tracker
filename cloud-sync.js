@@ -1,7 +1,7 @@
 /* MacroFit optional Supabase sync. Local journal is always available. */
 (() => {
   'use strict';
-  const CONFIG = { url: '', anonKey: '' }; // Fill from your Supabase Project Settings > API
+  const CONFIG = { url: 'https://srkmqaprzqgvwsnzofhi.supabase.co', anonKey: '' }; // Fill from your Supabase Project Settings > API
   const KEY = 'macrofit_journal_v2';
   let client, user, ready = false, uploading = false, timer, lastCloud = '';
   const el = id => document.getElementById(id);
