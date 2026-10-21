@@ -156,6 +156,11 @@
 
   <!-- Main Container -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
+    <nav class="flex gap-2 mb-6" aria-label="Journal views">
+      <button id="daily-view-btn" aria-pressed="true" class="px-4 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white">Daily Journal</button>
+      <button id="weekly-view-btn" aria-pressed="false" class="px-4 py-2 rounded-xl text-sm font-bold bg-white text-slate-700 border border-slate-200">Weekly Overview</button>
+    </nav>
+    <div id="daily-view">
     
     <!-- Date Journaling Bar -->
     <div class="bg-white rounded-2xl p-4 sm:px-6 shadow-sm border border-slate-200/80 mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -433,6 +438,35 @@
       </div>
 
     </div>
+
+    </div>
+    <section id="weekly-view" class="hidden space-y-6" aria-label="Weekly nutrition overview">
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-wrap gap-3 justify-between items-center">
+        <div>
+          <h1 class="font-display text-2xl font-extrabold text-slate-900">Weekly Overview</h1>
+          <p id="week-range" class="text-sm text-slate-500 mt-1"></p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button id="week-prev" class="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold" aria-label="Previous week">← Previous</button>
+          <button id="week-current" class="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold">This week</button>
+          <button id="week-next" class="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold" aria-label="Next week">Next →</button>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500">Weeks run Monday–Sunday. Averages use logged days only; missing days are not counted as zero. Targets use your current settings.</p>
+      <div id="weekly-cards" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+      <div class="bg-white border border-slate-200 rounded-2xl p-5">
+        <h2 class="font-bold text-slate-800 mb-1">Daily calories</h2>
+        <p class="text-xs text-slate-500 mb-4">Green bars represent logged calorie totals; dashed line indicates your current daily target.</p>
+        <div id="weekly-chart" class="flex items-end gap-2 h-56" role="img" aria-label="Weekly calorie bar chart"></div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 overflow-x-auto">
+        <h2 class="font-bold text-slate-800 mb-4">Daily macro breakdown</h2>
+        <table class="min-w-full text-sm text-left">
+          <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">Day</th><th class="pr-4">Calories</th><th class="pr-4">Protein</th><th class="pr-4">Carbs</th><th>Fat</th></tr></thead>
+          <tbody id="weekly-table" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
   <!-- Modal: Macro Targets Settings -->
@@ -588,12 +622,101 @@
       return `${year}-${month}-${day}`;
     }
 
+
+    // Weekly Overview: read-only aggregation of existing v2 journal entries.
+    let weeklyAnchor = getTodayDateString();
+    function parseJournalDate(key) {
+      const [y,m,d] = key.split('-').map(Number);
+      return new Date(y,m-1,d);
+    }
+    function journalDateKey(d) {
+      return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+    }
+    function mondayOf(key) {
+      const d = parseJournalDate(key);
+      d.setDate(d.getDate() - ((d.getDay()+6)%7));
+      return d;
+    }
+    function totalsForStoredDay(key) {
+      const day = journalState.days && journalState.days[key];
+      const totals = {calories:0,protein:0,carbs:0,fat:0,count:0};
+      if (!day || typeof day !== 'object') return totals;
+      MEAL_CATEGORIES.forEach(cat => {
+        const items = Array.isArray(day[cat.id]) ? day[cat.id] : [];
+        items.forEach(it => {
+          ['calories','protein','carbs','fat'].forEach(n => { totals[n] += Number(it[n]) || 0; });
+          totals.count++;
+        });
+      });
+      return totals;
+    }
+    function setJournalView(view) {
+      const weekly = view === 'weekly';
+      document.getElementById('daily-view').classList.toggle('hidden',weekly);
+      document.getElementById('weekly-view').classList.toggle('hidden',!weekly);
+      ['daily','weekly'].forEach(name => {
+        const b = document.getElementById(name+'-view-btn');
+        const active = name === view;
+        b.setAttribute('aria-pressed',String(active));
+        b.className = 'px-4 py-2 rounded-xl text-sm font-bold ' + (active ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700 border border-slate-200');
+      });
+      if (weekly) renderWeeklyOverview();
+    }
+    function renderWeeklyOverview() {
+      const start = mondayOf(weeklyAnchor);
+      const end = new Date(start); end.setDate(end.getDate()+6);
+      const dateFmt = d => d.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+      document.getElementById('week-range').textContent = dateFmt(start)+' – '+dateFmt(end);
+      const rows = Array.from({length:7},(_,i) => {
+        const d = new Date(start);d.setDate(d.getDate()+i);
+        const key=journalDateKey(d);return {key,date:d,...totalsForStoredDay(key)};
+      });
+      const logged=rows.filter(x=>x.count>0);
+      const sum=name=>logged.reduce((acc,x)=>acc+x[name],0);
+      const avg=name=>logged.length?sum(name)/logged.length:0;
+      const fmt=n=>Math.round(n).toLocaleString('en-AU');
+      const target=Number(journalState.targets.calories)||0;
+      const proteinTarget=Number(journalState.targets.protein)||0;
+      const proteinDays=logged.filter(x=>proteinTarget>0&&x.protein>=proteinTarget).length;
+      const atOrUnder=logged.filter(x=>target>0&&x.calories<=target).length;
+      const priorStart=new Date(start);priorStart.setDate(priorStart.getDate()-7);
+      const priorLogged=Array.from({length:7},(_,i)=>{const d=new Date(priorStart);d.setDate(d.getDate()+i);return totalsForStoredDay(journalDateKey(d));}).filter(x=>x.count>0);
+      const priorAvg=priorLogged.length?priorLogged.reduce((a,x)=>a+x.calories,0)/priorLogged.length:null;
+      const diff=priorAvg===null?'No prior-week data':(avg('calories')-priorAvg>=0?'+':'')+fmt(avg('calories')-priorAvg)+' kcal vs prior week';
+      const cards=[
+        ['Weekly calories',fmt(sum('calories'))+' kcal',logged.length+' of 7 days logged'],
+        ['Daily average',logged.length?fmt(avg('calories'))+' kcal':'—',logged.length?diff:'No logged days'],
+        ['Average macros',logged.length?fmt(avg('protein'))+'g protein':'—',logged.length?fmt(avg('carbs'))+'g carbs · '+fmt(avg('fat'))+'g fat':'No logged days'],
+        ['Targets met',atOrUnder+' calorie days',proteinDays+' protein days (of '+logged.length+' logged)']
+      ];
+      document.getElementById('weekly-cards').innerHTML=cards.map(([title,value,detail])=>
+        '<div class="bg-white border border-slate-200 rounded-2xl p-4"><p class="text-xs font-semibold uppercase text-slate-500">'+title+'</p><p class="text-xl font-extrabold text-slate-800 mt-2">'+value+'</p><p class="text-xs text-slate-500 mt-1">'+detail+'</p></div>').join('');
+      const ceiling=Math.max(target, ...rows.map(x=>x.calories),1)*1.15;
+      const chart=document.getElementById('weekly-chart');
+      chart.innerHTML=rows.map(x=>{
+        const pct=x.count?100*x.calories/ceiling:0;
+        return '<div class="flex-1 min-w-0 h-full flex flex-col justify-end items-center gap-2"><span class="text-[10px] sm:text-xs text-slate-600 truncate max-w-full">'+(x.count?fmt(x.calories):'—')+'</span><div class="w-full max-w-16 bg-emerald-500 rounded-t-lg" style="height:'+pct+'%"></div><span class="text-xs font-semibold text-slate-600">'+x.date.toLocaleDateString('en-AU',{weekday:'short'})+'</span></div>';
+      }).join('');
+      chart.setAttribute('aria-label','Calorie totals: '+rows.map(x=>x.date.toLocaleDateString('en-AU',{weekday:'short'})+' '+(x.count?fmt(x.calories)+' kcal':'not logged')).join(', ')+'. Target '+fmt(target)+' kcal');
+      document.getElementById('weekly-table').innerHTML=rows.map(x=>
+        '<tr><td class="py-3 pr-4 font-semibold">'+x.date.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+'</td>'+
+        (x.count?['calories','protein','carbs','fat'].map((n,i)=>'<td class="pr-4">'+(i===0?fmt(x[n]):x[n].toFixed(1)+'g')+'</td>').join(''):'<td colspan="4" class="text-slate-400">No entries</td>')+'</tr>').join('');
+    }
+    function initWeeklyControls(){
+      document.getElementById('daily-view-btn').addEventListener('click',()=>setJournalView('daily'));
+      document.getElementById('weekly-view-btn').addEventListener('click',()=>setJournalView('weekly'));
+      document.getElementById('week-prev').addEventListener('click',()=>{const d=mondayOf(weeklyAnchor);d.setDate(d.getDate()-7);weeklyAnchor=journalDateKey(d);renderWeeklyOverview();});
+      document.getElementById('week-next').addEventListener('click',()=>{const d=mondayOf(weeklyAnchor);d.setDate(d.getDate()+7);weeklyAnchor=journalDateKey(d);renderWeeklyOverview();});
+      document.getElementById('week-current').addEventListener('click',()=>{weeklyAnchor=getTodayDateString();renderWeeklyOverview();});
+    }
+
     // App Initialization
     function init() {
       document.getElementById('year-label').textContent = new Date().getFullYear();
       loadState();
       setupDateControls();
       setupEventListeners();
+      initWeeklyControls();
       renderPresetLibrary();
       loadCurrentDay();
     }
