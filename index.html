@@ -179,6 +179,7 @@
         </div>
       </div>
     </section>
+    <section class="bg-white border border-slate-200 rounded-2xl p-4 mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-bold">Daily Weight</h2><p class="text-xs text-slate-500">For the selected date, in kilograms</p></div><div class="flex items-center gap-2"><input type="number" id="daily-weight" min="20" max="400" step="0.1" placeholder="98.0" aria-label="Daily weight kg" class="w-24 border rounded-lg p-2 text-sm"><span class="text-xs">kg</span><button id="weight-save" class="bg-emerald-600 text-white rounded-lg p-2 text-xs">Save</button><button id="weight-clear" class="border rounded-lg p-2 text-xs">Clear</button></div></section>
     <!-- Date Journaling Bar -->
     <div class="bg-white rounded-2xl p-4 sm:px-6 shadow-sm border border-slate-200/80 mb-6 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center space-x-2">
@@ -330,6 +331,7 @@
       </div>
     </div>
 
+    <div class="bg-white border rounded-xl p-4 mb-5 flex gap-6 text-sm"><div>Daily sugar <strong id="sugar-total">0g</strong></div><div>Saturated fat <strong id="satfat-total">0g</strong></div><small class="text-slate-500">Unspecified values excluded</small></div>
     <!-- Main Content Layout: Meals on Left, Food Picker on Right -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       
@@ -441,6 +443,7 @@
               </div>
             </div>
 
+            <div class="grid grid-cols-2 gap-2"><label class="text-xs">Sugar (g)<input type="number" min="0" step="0.1" id="custom-sugar" class="w-full border rounded-lg p-2" placeholder="Optional"></label><label class="text-xs">Saturated fat (g)<input type="number" min="0" step="0.1" id="custom-satfat" class="w-full border rounded-lg p-2" placeholder="Optional"></label></div>
             <div class="pt-2">
               <button id="submit-custom-item-btn" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center space-x-2">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -476,10 +479,11 @@
         <p class="text-xs text-slate-500 mb-4">Green bars represent logged calorie totals. Your current calorie target is shown in the summary.</p>
         <div id="weekly-chart" class="flex items-end gap-2 h-56" role="img" aria-label="Weekly calorie bar chart"></div>
       </div>
+      <div class="bg-white border rounded-2xl p-5"><h2 class="font-bold">Weekly Weight Trend</h2><p id="weight-week-summary" class="text-sm text-slate-500 my-2"></p><div id="weight-week-chart"></div></div>
       <div class="bg-white border border-slate-200 rounded-2xl p-5 overflow-x-auto">
         <h2 class="font-bold text-slate-800 mb-4">Daily macro breakdown</h2>
         <table class="min-w-full text-sm text-left">
-          <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">Day</th><th class="pr-4">Calories</th><th class="pr-4">Protein</th><th class="pr-4">Carbs</th><th>Fat</th></tr></thead>
+          <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">Day</th><th class="pr-4">Calories</th><th class="pr-4">Protein</th><th class="pr-4">Carbs</th><th>Fat</th><th>Sugar</th><th>Sat. fat</th></tr></thead>
           <tbody id="weekly-table" class="divide-y divide-slate-100"></tbody>
         </table>
       </div>
@@ -625,7 +629,7 @@
       targets: { calories: 2000, protein: 150, carbs: 200, fat: 67 },
       customFoods: [],
       // Stored by date string: 'YYYY-MM-DD' => { breakfast: [], lunch: [], dinner: [], snack: [] }
-      days: {}
+      days: {}, weights: {}
     };
 
     let selectedDate = getTodayDateString();
@@ -736,6 +740,7 @@
       setupDateControls();
       setupEventListeners();
       initWeeklyControls();
+      initWeightControls();
       renderPresetLibrary();
       loadCurrentDay();
       if (window.MacroFitCloud) window.MacroFitCloud.init();
@@ -855,6 +860,7 @@
 
       renderMealSections();
       updateDashboardSummary();
+      document.getElementById("daily-weight").value=journalState.weights?.[selectedDate] ?? "";
     }
 
     // Update Dashboard Summary, Rings, and Progress Bars
