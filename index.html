@@ -162,6 +162,23 @@
     </nav>
     <div id="daily-view">
     
+    <section id="cloud-sync-panel" class="bg-white rounded-2xl border border-slate-200 p-4 mb-5 flex flex-wrap items-center justify-between gap-3" aria-label="Cloud synchronisation">
+      <div><p class="text-sm font-bold">Cloud sync <span id="cloud-sync-status" class="ml-2 text-xs font-normal text-slate-500">Not configured · local data stays on this device</span></p><p class="text-xs text-slate-500 mt-1">Optional: connect a secure account to share entries across devices.</p></div>
+      <div class="flex flex-wrap gap-2 items-center">
+        <input id="cloud-email" aria-label="Email for cloud sign in" type="email" placeholder="Your email" class="border border-slate-200 rounded-lg px-3 py-2 text-xs max-w-48">
+        <button id="cloud-signin" class="bg-emerald-600 text-white rounded-lg px-3 py-2 text-xs font-bold">Email sign-in link</button>
+        <button id="cloud-refresh" class="hidden border border-slate-200 rounded-lg px-3 py-2 text-xs">Sync now</button>
+        <button id="cloud-signout" class="hidden border border-slate-200 rounded-lg px-3 py-2 text-xs">Sign out</button>
+      </div>
+      <div id="cloud-choice" class="hidden basis-full bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+        <p class="font-semibold text-sm">Choose the starting journal for this device</p>
+        <p class="text-xs text-slate-700">If both devices already contain entries, export a full JSON backup on each first. Uploading this device replaces the cloud copy; downloading the cloud copy replaces this device's journal.</p>
+        <div class="flex flex-wrap gap-2">
+          <button id="cloud-use-remote" class="px-3 py-2 rounded-lg bg-white border text-xs font-bold">Use cloud copy on this device</button>
+          <button id="cloud-use-local" class="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold">Upload this device's copy</button>
+        </div>
+      </div>
+    </section>
     <!-- Date Journaling Bar -->
     <div class="bg-white rounded-2xl p-4 sm:px-6 shadow-sm border border-slate-200/80 mb-6 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center space-x-2">
@@ -552,6 +569,8 @@
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./cloud-sync.js" defer></script>
   <!-- App Script Logic -->
   <script>
     /**
@@ -719,6 +738,7 @@
       initWeeklyControls();
       renderPresetLibrary();
       loadCurrentDay();
+      if (window.MacroFitCloud) window.MacroFitCloud.init();
     }
 
     // Load State from LocalStorage
@@ -743,6 +763,8 @@
       } catch (err) {
         console.error('Failed to save to local storage', err);
       }
+
+      if (window.MacroFitCloud) window.MacroFitCloud.localChanged();
 
       // If linked to disk file via File System Access API
       if (fileHandle) {
