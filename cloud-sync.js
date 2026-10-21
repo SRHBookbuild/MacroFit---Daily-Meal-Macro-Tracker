@@ -9,6 +9,26 @@
   const valid = x => x && typeof x==='object' && x.days && typeof x.days==='object' && Array.isArray(x.customFoods);
   const local = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
   const stamp = () => new Date().toISOString();
+  // Normalise JSONB key ordering and ignore empty placeholder days created during rendering.
+  function canonical(value) {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.keys(value).sort().map(k => [k,canonical(value[k])]));
+    }
+    return value;
+  }
+  function fingerprint(journal) {
+    if (!valid(journal)) return null;
+    const cleaned = structuredClone(journal);
+    for (const key of Object.keys(cleaned.days)) {
+      const day = cleaned.days[key];
+      if (day && Object.values(day).every(x => Array.isArray(x) && x.length === 0)) delete cleaned.days[key];
+    }
+    return JSON.stringify(canonical(cleaned));
+  }
+  const baselineKey = () => 'macrofit_cloud_baseline_' + user.id;
+  const baseline = () => localStorage.getItem(baselineKey());
+  const recordBaseline = journal => {const fp=fingerprint(journal);if(fp)localStorage.setItem(baselineKey(),fp);};
   const hideChoice = () => el('cloud-choice').classList.add('hidden');
   function setButtons(signedIn){
     el('cloud-email').classList.toggle('hidden',signedIn);
@@ -30,14 +50,19 @@
     try {
       if(!force) {
         const r=await remote();
+        const localFP=fingerprint(payload), remoteFP=r?fingerprint(r.journal):null;
+        if(r && localFP===remoteFP) {
+          lastCloud=r.updated_at;recordBaseline(payload);status('Already synced');return;
+        }
         if(r && r.updated_at!==lastCloud) {
-          ready=false; status('Cloud changed on another device · choose a copy');
+          if(localFP===baseline()) {await download(r);return;}
+          ready=false; status('Both devices changed · choose a copy');
           el('cloud-choice').classList.remove('hidden'); return;
         }
       }
       const {error}=await client.from('macrofit_journals').upsert({user_id:user.id,journal:payload,updated_at:stamp()},{onConflict:'user_id'});
       if(error) throw error;
-      const r=await remote();lastCloud=r.updated_at;status('Synced · '+new Date().toLocaleTimeString());
+      const r=await remote();lastCloud=r.updated_at;recordBaseline(payload);status('Synced · '+new Date().toLocaleTimeString());
     } catch(e){status('Sync failed · local changes retained');console.error('Cloud sync',e);}
     finally {uploading=false;}
   }
@@ -47,6 +72,7 @@
     if(backup) localStorage.setItem('macrofit_pre_cloud_backup_'+Date.now(),JSON.stringify(backup));
     localStorage.setItem(KEY,JSON.stringify(r.journal));
     lastCloud=r.updated_at;
+    recordBaseline(r.journal);
     ready=true;
     location.reload();
   }
@@ -59,10 +85,17 @@
       if(!r) {ready=true;lastCloud='';status('No cloud journal · ready to upload'); await upload(true); return;}
       lastCloud=r.updated_at;
       const localData=local();
-      // Do not overwrite either copy without explicit selection.
-      if(JSON.stringify(r.journal)===JSON.stringify(localData)) {ready=true;status('Synced');return;}
+      const localFP=fingerprint(localData), remoteFP=fingerprint(r.journal);
+      if(localFP===remoteFP) {
+        recordBaseline(localData);ready=true;hideChoice();status('Synced');return;
+      }
+      const prior=baseline();
+      if(prior && prior===localFP) {await download(r);return;}
+      if(prior && prior===remoteFP) {
+        ready=true;hideChoice();await upload();return;
+      }
       ready=false;
-      status('Choose a starting copy to prevent data loss');
+      status('Desktop and cloud differ · choose a copy (back up first)');
       el('cloud-choice').classList.remove('hidden');
     } catch(e){status('Cloud unavailable · data stays local');console.error(e);}
   }
