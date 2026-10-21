@@ -662,12 +662,12 @@
     }
     function totalsForStoredDay(key) {
       const day = journalState.days && journalState.days[key];
-      const totals = {calories:0,protein:0,carbs:0,fat:0,count:0};
+      const totals = {calories:0,protein:0,carbs:0,fat:0,sugar:0,satFat:0,count:0};
       if (!day || typeof day !== 'object') return totals;
       MEAL_CATEGORIES.forEach(cat => {
         const items = Array.isArray(day[cat.id]) ? day[cat.id] : [];
         items.forEach(it => {
-          ['calories','protein','carbs','fat'].forEach(n => { totals[n] += Number(it[n]) || 0; });
+          ['calories','protein','carbs','fat','sugar','satFat'].forEach(n => { totals[n] += Number(it[n]) || 0; });
           totals.count++;
         });
       });
@@ -694,6 +694,17 @@
         const d = new Date(start);d.setDate(d.getDate()+i);
         const key=journalDateKey(d);return {key,date:d,...totalsForStoredDay(key)};
       });
+      const weights=rows.map((r,i)=>({i,value:journalState.weights?.[r.key]})).filter(x=>Number.isFinite(Number(x.value))&&Number(x.value)>0);
+      const summary=document.getElementById('weight-week-summary');
+      if(weights.length){
+        const avg=weights.reduce((a,x)=>a+Number(x.value),0)/weights.length;
+        const delta=weights.length>1?Number(weights[weights.length-1].value)-Number(weights[0].value):null;
+        summary.textContent='Average '+avg.toFixed(1)+' kg · '+weights.length+' weigh-in(s)'+(delta===null?'':' · Change '+(delta>0?'+':'')+delta.toFixed(1)+' kg');
+        const vals=weights.map(x=>Number(x.value));
+        const lo=Math.min(...vals)-0.5,hi=Math.max(...vals)+0.5;
+        const pts=weights.map(x=>({x:35+x.i*65,y:135-110*(Number(x.value)-lo)/(hi-lo),value:Number(x.value)}));
+        document.getElementById('weight-week-chart').innerHTML='<svg viewBox="0 0 470 175" class="w-full max-w-2xl" role="img" aria-label="Weight chart in kilograms"><polyline points="'+pts.map(p=>p.x+','+p.y).join(' ')+'" fill="none" stroke="#059669" stroke-width="3"/>'+pts.map(p=>'<circle cx="'+p.x+'" cy="'+p.y+'" r="4" fill="#059669"/><text x="'+p.x+'" y="'+(p.y-12)+'" font-size="11" text-anchor="middle">'+p.value.toFixed(1)+'</text>').join('')+rows.map((r,i)=>'<text x="'+(35+i*65)+'" y="160" font-size="11" text-anchor="middle">'+r.date.toLocaleDateString('en-AU',{weekday:'short'})+'</text>').join('')+'</svg>';
+      }else{summary.textContent='No weight entries this week';document.getElementById('weight-week-chart').innerHTML='';}
       const logged=rows.filter(x=>x.count>0);
       const sum=name=>logged.reduce((acc,x)=>acc+x[name],0);
       const avg=name=>logged.length?sum(name)/logged.length:0;
@@ -723,7 +734,22 @@
       chart.setAttribute('aria-label','Calorie totals: '+rows.map(x=>x.date.toLocaleDateString('en-AU',{weekday:'short'})+' '+(x.count?fmt(x.calories)+' kcal':'not logged')).join(', ')+'. Target '+fmt(target)+' kcal');
       document.getElementById('weekly-table').innerHTML=rows.map(x=>
         '<tr><td class="py-3 pr-4 font-semibold">'+x.date.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+'</td>'+
-        (x.count?['calories','protein','carbs','fat'].map((n,i)=>'<td class="pr-4">'+(i===0?fmt(x[n]):x[n].toFixed(1)+'g')+'</td>').join(''):'<td colspan="4" class="text-slate-400">No entries</td>')+'</tr>').join('');
+        (x.count?['calories','protein','carbs','fat','sugar','satFat'].map((n,i)=>'<td class="pr-4">'+(i===0?fmt(x[n]):x[n].toFixed(1)+'g')+'</td>').join(''):'<td colspan="6" class="text-slate-400">No entries</td>')+'</tr>').join('');
+    }
+    function initWeightControls(){
+      document.getElementById('weight-save').onclick=()=>{
+        const x=Number(document.getElementById('daily-weight').value);
+        if(!Number.isFinite(x)||x<20||x>400){showToast('Enter weight between 20 and 400 kg','error');return;}
+        journalState.weights=journalState.weights||{};
+        journalState.weights[selectedDate]=Math.round(x*10)/10;
+        saveState();showToast('Weight saved','success');
+      };
+      document.getElementById('weight-clear').onclick=()=>{
+        if(!confirm('Clear weight for this date?'))return;
+        if(journalState.weights)delete journalState.weights[selectedDate];
+        document.getElementById('daily-weight').value='';
+        saveState();showToast('Weight cleared','success');
+      };
     }
     function initWeeklyControls(){
       document.getElementById('daily-view-btn').addEventListener('click',()=>setJournalView('daily'));
@@ -866,7 +892,7 @@
     // Update Dashboard Summary, Rings, and Progress Bars
     function updateDashboardSummary() {
       const dayMeals = getDayData(selectedDate);
-      let totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      let totals = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar:0,satFat:0 };
       let itemCount = 0;
 
       Object.keys(dayMeals).forEach(mealKey => {
@@ -875,10 +901,14 @@
           totals.protein += Number(item.protein || 0);
           totals.carbs += Number(item.carbs || 0);
           totals.fat += Number(item.fat || 0);
+          totals.sugar += Number(item.sugar || 0);
+          totals.satFat += Number(item.satFat || 0);
           itemCount++;
         });
       });
 
+      document.getElementById("sugar-total").textContent=totals.sugar.toFixed(1)+"g";
+      document.getElementById("satfat-total").textContent=totals.satFat.toFixed(1)+"g";
       totals.calories = Math.round(totals.calories);
       totals.protein = Math.round(totals.protein * 10) / 10;
       totals.carbs = Math.round(totals.carbs * 10) / 10;
