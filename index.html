@@ -445,7 +445,7 @@
 
             <div class="grid grid-cols-2 gap-2"><label class="text-xs">Sugar (g)<input type="number" min="0" step="0.1" id="custom-sugar" class="w-full border rounded-lg p-2" placeholder="Optional"></label><label class="text-xs">Saturated fat (g)<input type="number" min="0" step="0.1" id="custom-satfat" class="w-full border rounded-lg p-2" placeholder="Optional"></label></div>
             <label class="text-xs block">Sodium (mg)<input type="number" min="0" step="1" id="custom-sodium" placeholder="Optional" class="w-full border rounded-lg p-2 mt-1"></label>
-            <div class="pt-2"><button id="paste-nutrition-btn" class="w-full mb-2 border border-emerald-500 rounded-xl px-3 py-2 text-sm font-bold text-emerald-700">Paste Nutrition from ChatGPT</button><p class="text-xs text-slate-500 mb-3">Copies nutrients into this form for your review; does not add a food until you save it.</p>
+            <div id="custom-edit-notice" class="hidden text-xs p-2 bg-amber-50">Editing a saved food. Historical meals remain unchanged.</div><button id="cancel-custom-edit-btn" class="hidden border rounded p-2 text-xs" type="button">Cancel edit</button><div class="pt-2"><button id="paste-nutrition-btn" class="w-full mb-2 border border-emerald-500 rounded-xl px-3 py-2 text-sm font-bold text-emerald-700">Paste Nutrition from ChatGPT</button><p class="text-xs text-slate-500 mb-3">Copies nutrients into this form for your review; does not add a food until you save it.</p>
               <button id="submit-custom-item-btn" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center space-x-2">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -1202,6 +1202,7 @@
               <span class="text-rose-600 font-semibold">F: ${food.fat}g</span>${food.sugar != null ? `<span>Sugar: ${food.sugar}g</span>` : ""}${food.satFat != null ? `<span>Sat: ${food.satFat}g</span>` : ""}
             </div>
           </div>
+          ${isCustom ? `<div class="flex flex-col gap-1"><button onclick="editSavedCustomFood('${food.id}')" class="text-xs border rounded p-1">Edit</button><button onclick="deleteSavedCustomFood('${food.id}')" class="text-xs border rounded p-1 text-red-600">Delete</button></div>` : ''}
           <button onclick="addPresetItemToActiveMeal('${food.id}')" class="shrink-0 p-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition shadow-sm font-semibold text-xs flex items-center justify-center">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
@@ -1211,6 +1212,39 @@
         listContainer.appendChild(el);
       });
     }
+
+    let editingCustomFoodId = null;
+    function setCustomEdit(id) {
+      editingCustomFoodId = id;
+      document.querySelector('#submit-custom-item-btn span').textContent = id ? 'Save Changes' : 'Add & Save to Custom Foods';
+      document.getElementById('cancel-custom-edit-btn').classList.toggle('hidden', !id);
+      document.getElementById('custom-edit-notice').classList.toggle('hidden', !id);
+    }
+    function resetCustomFoodForm() {
+      ['custom-name','custom-cals','custom-protein','custom-carbs','custom-fat','custom-sugar','custom-satfat','custom-sodium'].forEach(id => document.getElementById(id).value='');
+      document.getElementById('custom-unit').value='1 serving';
+      setCustomEdit(null);
+    }
+    window.editSavedCustomFood = function(id) {
+      const food = (journalState.customFoods || []).find(f => f.id === id);
+      if (!food) return;
+      setCustomEdit(id);
+      const fields = {'custom-name':food.name,'custom-unit':food.unit || '1 serving','custom-cals':food.calories,'custom-protein':food.protein,'custom-carbs':food.carbs,'custom-fat':food.fat,'custom-sugar':food.sugar,'custom-satfat':food.satFat,'custom-sodium':food.sodium};
+      Object.entries(fields).forEach(([key,value]) => document.getElementById(key).value = value == null ? '' : value);
+      document.getElementById('tab-custom-btn').click();
+      document.getElementById('custom-name').focus();
+    };
+    window.deleteSavedCustomFood = function(id) {
+      const index = (journalState.customFoods || []).findIndex(f => f.id === id);
+      if (index < 0) return;
+      const food = journalState.customFoods[index];
+      if (!confirm('Delete '+food.name+' from Custom Foods? Previous meal records will remain.')) return;
+      journalState.customFoods.splice(index,1);
+      if (editingCustomFoodId === id) resetCustomFoodForm();
+      saveState();
+      renderPresetLibrary(document.getElementById('food-search-input').value);
+      showToast('Deleted saved food. Past meals kept.', 'info');
+    };
 
     // Add item to active date's meal
     window.addPresetItemToActiveMeal = function(foodId) {
@@ -1343,6 +1377,7 @@
 
       // Custom food submission
       document.getElementById('submit-custom-item-btn').addEventListener('click', handleCustomItemSubmit);
+      document.getElementById('cancel-custom-edit-btn').addEventListener('click', resetCustomFoodForm);
 
       // Reset Current Day
       document.getElementById('reset-day-btn').addEventListener('click', () => {
@@ -1500,9 +1535,11 @@
         return;
       }
 
-      // Add to reusable custom foods library
+      const customIndex = editingCustomFoodId === null ? -1 : (journalState.customFoods || []).findIndex(f => f.id === editingCustomFoodId);
+      if (editingCustomFoodId !== null && customIndex < 0) { showToast('Food no longer exists', 'error'); resetCustomFoodForm(); return; }
+      const isEditing = customIndex >= 0;
       const customFoodRecord = {
-        id: 'custom_' + Date.now(),
+        id: isEditing ? editingCustomFoodId : 'custom_' + Date.now(),
         name,
         category: 'custom',
         unit,
@@ -1516,8 +1553,10 @@
       };
 
       journalState.customFoods = journalState.customFoods || [];
-      journalState.customFoods.unshift(customFoodRecord);
+      if (isEditing) journalState.customFoods[customIndex] = { ...journalState.customFoods[customIndex], ...customFoodRecord };
+      else journalState.customFoods.unshift(customFoodRecord);
 
+      if (!isEditing) {
       // Log immediately to active meal
       const targetMeal = document.getElementById('active-meal-select').value;
       const dayMeals = getDayData(selectedDate);
@@ -1538,22 +1577,14 @@
         fat,
         sugar,satFat,sodium
       });
+      }
 
       saveState();
-      renderPresetLibrary();
+      renderPresetLibrary(document.getElementById('food-search-input').value);
       renderMealSections();
       updateDashboardSummary();
-
-      nameInput.value = '';
-      calsInput.value = '';
-      proteinInput.value = '';
-      carbsInput.value = '';
-      fatInput.value = '';
-      document.getElementById('custom-sugar').value='';
-      document.getElementById('custom-satfat').value='';
-      document.getElementById('custom-sodium').value='';
-
-      showToast(`Saved and added "${name}" to ${targetMeal.toUpperCase()}!`, 'success');
+      resetCustomFoodForm();
+      showToast(isEditing ? 'Updated saved custom food. Past meals unchanged.' : 'Saved and added '+name+' to '+targetMeal.toUpperCase(), 'success');
     }
 
     // Direct File System Access API handler
