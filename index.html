@@ -760,6 +760,51 @@
       document.getElementById('week-current').addEventListener('click',()=>{weeklyAnchor=getTodayDateString();renderWeeklyOverview();});
     }
 
+
+    function setupPasteNutrition(){
+      document.getElementById('paste-nutrition-btn').addEventListener('click',async()=>{
+        let raw='';
+        try {raw=await navigator.clipboard.readText();}
+        catch(e) {raw=prompt('Paste the copied MacroFit nutrition text here:')||'';}
+        if(!raw.trim())return;
+        const fields=raw.split('|').map(x=>x.trim()).filter(Boolean);
+        // Supported format: Food | 2 rolls | 250 kcal | Protein 18g | ...
+        const labels={
+          calories:/^(?:calories?|energy)\s*:?\s*([\d,.]+)\s*(?:kcal|calories?)?$/i,
+          protein:/^protein\s*:?\s*([\d,.]+)\s*g?$/i,
+          carbs:/^(?:carbs?|carbohydrates?)\s*:?\s*([\d,.]+)\s*g?$/i,
+          fat:/^(?:fat|total fat)\s*:?\s*([\d,.]+)\s*g?$/i,
+          sugar:/^(?:sugar|sugars|total sugars)\s*:?\s*([\d,.]+)\s*g?$/i,
+          satfat:/^(?:saturated fat|sat\.? fat|saturates?)\s*:?\s*([\d,.]+)\s*g?$/i,
+          sodium:/^sodium\s*:?\s*([\d,.]+)\s*(mg|g)?$/i
+        };
+        const values={};let name='';let serving='';
+        for(const field of fields){
+          let matched=false;
+          for(const [key,re] of Object.entries(labels)){
+            const m=field.match(re);
+            if(m){
+              const v=Number(m[1].replace(/,/g,''));
+              if(!Number.isFinite(v)||v<0){showToast('Invalid nutrient value','error');return;}
+              values[key]=key==='sodium'&&m[2]?.toLowerCase()==='g'?v*1000:v;
+              matched=true;break;
+            }
+          }
+          if(!matched){
+            const kcal=field.match(/^([\d,.]+)\s*(?:kcal|calories?)$/i);
+            if(kcal){values.calories=Number(kcal[1].replace(/,/g,''));matched=true;}
+          }
+          if(!matched){if(!name)name=field;else if(!serving)serving=field;}
+        }
+        if(!name||values.calories===undefined){showToast('Paste must include a food name and calories','error');return;}
+        const ids={calories:'custom-cals',protein:'custom-protein',carbs:'custom-carbs',fat:'custom-fat',sugar:'custom-sugar',satfat:'custom-satfat',sodium:'custom-sodium'};
+        document.getElementById('custom-name').value=name;
+        document.getElementById('custom-unit').value=serving||'1 serving';
+        Object.entries(ids).forEach(([k,id])=>document.getElementById(id).value=values[k]??'');
+        showToast('Nutrition pasted. Review values, then Add & Save.','success');
+      });
+    }
+
     // App Initialization
     function init() {
       document.getElementById('year-label').textContent = new Date().getFullYear();
@@ -1442,7 +1487,7 @@
       const sodium=sodiumText===""?null:Number(sodiumText);
       const sugar=sugarText===""?null:Number(sugarText);
       const satFat=satText===""?null:Number(satText);
-      if((sugar!==null&&(!Number.isFinite(sugar)||sugar<0))||(satFat!==null&&(!Number.isFinite(satFat)||satFat<0))||(sodium!==null&&(!Number.isFinite(sodium)||sodium<0))){showToast("Check sugar and saturated fat","error");return;}
+      if((sugar!==null&&(!Number.isFinite(sugar)||sugar<0))||(satFat!==null&&(!Number.isFinite(satFat)||satFat<0))||(sodium!==null&&(!Number.isFinite(sodium)||sodium<0))){showToast("Check sugar, saturated fat and sodium","error");return;}
 
       if (!name) {
         showToast('Please enter an item name', 'error');
