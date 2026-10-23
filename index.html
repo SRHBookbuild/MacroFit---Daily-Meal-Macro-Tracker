@@ -473,7 +473,7 @@
           <button id="week-next" class="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold" aria-label="Next week">Next →</button>
         </div>
       </div>
-      <p class="text-xs text-slate-500">Weeks run Monday–Sunday. Averages use logged days only; missing days are not counted as zero. Targets use your current settings.</p>
+      <p class="text-xs text-slate-500">Weeks run Monday–Sunday. Averages use logged days only; missing days are not counted as zero. The weekly budget resets every Sunday; daily targets never exceed 2,000 kcal.</p>
       <div id="weekly-cards" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
       <div class="bg-white border border-slate-200 rounded-2xl p-5">
         <h2 class="font-bold text-slate-800 mb-1">Daily calories</h2>
@@ -533,7 +533,7 @@
       <div class="mt-5 space-y-3 pt-4 border-t border-slate-100">
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Total Calorie Target (kcal)</label>
-          <input id="input-target-cals" type="number" min="500" max="10000" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <input id="input-target-cals" type="number" min="2000" max="2000" readonly class="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
         </div>
 
         <div class="grid grid-cols-3 gap-2">
@@ -647,7 +647,7 @@
     }
 
 
-    // Weekly Overview: read-only aggregation of existing v2 journal entries.
+    // Weekly Overview: Sunday-to-Saturday aggregation of existing journal entries.
     let weeklyAnchor = getTodayDateString();
     function parseJournalDate(key) {
       const [y,m,d] = key.split('-').map(Number);
@@ -657,9 +657,25 @@
       return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
     }
     function mondayOf(key) {
+      // Sunday is the first day of the calorie-budget week.
       const d = parseJournalDate(key);
-      d.setDate(d.getDate() - ((d.getDay()+6)%7));
+      d.setDate(d.getDate() - d.getDay());
       return d;
+    }
+    const WEEKLY_DAILY_CALORIE_LIMIT = 2000;
+    function adjustedCalorieTarget(key) {
+      const start = mondayOf(key);
+      const current = parseJournalDate(key);
+      const dayIndex = Math.round((Date.UTC(current.getFullYear(),current.getMonth(),current.getDate()) -
+        Date.UTC(start.getFullYear(),start.getMonth(),start.getDate())) / 86400000);
+      let consumedBefore = 0;
+      for (let i = 0; i < dayIndex; i++) {
+        const d = new Date(start); d.setDate(d.getDate()+i);
+        consumedBefore += totalsForStoredDay(journalDateKey(d)).calories;
+      }
+      const excess = Math.max(0,consumedBefore - WEEKLY_DAILY_CALORIE_LIMIT*dayIndex);
+      const remainingDays = 7-dayIndex;
+      return Math.max(0,WEEKLY_DAILY_CALORIE_LIMIT-Math.ceil(excess/remainingDays));
     }
     function totalsForStoredDay(key) {
       const day = journalState.days && journalState.days[key];
@@ -710,19 +726,19 @@
       const sum=name=>logged.reduce((acc,x)=>acc+x[name],0);
       const avg=name=>logged.length?sum(name)/logged.length:0;
       const fmt=n=>Math.round(n).toLocaleString('en-AU');
-      const target=Number(journalState.targets.calories)||0;
+      const target=WEEKLY_DAILY_CALORIE_LIMIT;
       const proteinTarget=Number(journalState.targets.protein)||0;
       const proteinDays=logged.filter(x=>proteinTarget>0&&x.protein>=proteinTarget).length;
-      const atOrUnder=logged.filter(x=>target>0&&x.calories<=target).length;
+      const atOrUnder=logged.filter(x=>x.calories<=adjustedCalorieTarget(x.key)).length;
       const priorStart=new Date(start);priorStart.setDate(priorStart.getDate()-7);
       const priorLogged=Array.from({length:7},(_,i)=>{const d=new Date(priorStart);d.setDate(d.getDate()+i);return totalsForStoredDay(journalDateKey(d));}).filter(x=>x.count>0);
       const priorAvg=priorLogged.length?priorLogged.reduce((a,x)=>a+x.calories,0)/priorLogged.length:null;
       const diff=priorAvg===null?'No prior-week data':(avg('calories')-priorAvg>=0?'+':'')+fmt(avg('calories')-priorAvg)+' kcal vs prior week';
       const cards=[
-        ['Weekly calories',fmt(sum('calories'))+' kcal',logged.length+' of 7 days logged'],
+        ['Weekly calories',fmt(sum('calories'))+' / 14,000 kcal',logged.length+' of 7 days logged'],
         ['Daily average',logged.length?fmt(avg('calories'))+' kcal':'—',logged.length?diff:'No logged days'],
         ['Average macros',logged.length?fmt(avg('protein'))+'g protein':'—',logged.length?fmt(avg('carbs'))+'g carbs · '+fmt(avg('fat'))+'g fat':'No logged days'],
-        ['Targets met',atOrUnder+' calorie days',proteinDays+' protein days (of '+logged.length+' logged)']
+        ['Targets met',atOrUnder+' adjusted-target days',proteinDays+' protein days (of '+logged.length+' logged)']
       ];
       document.getElementById('weekly-cards').innerHTML=cards.map(([title,value,detail])=>
         '<div class="bg-white border border-slate-200 rounded-2xl p-4"><p class="text-xs font-semibold uppercase text-slate-500">'+title+'</p><p class="text-xl font-extrabold text-slate-800 mt-2">'+value+'</p><p class="text-xs text-slate-500 mt-1">'+detail+'</p></div>').join('');
@@ -964,10 +980,11 @@
       totals.fat = Math.round(totals.fat * 10) / 10;
 
       document.getElementById('cals-consumed').textContent = totals.calories.toLocaleString();
-      document.getElementById('cals-target').textContent = Number(journalState.targets.calories).toLocaleString();
+      const dailyCalorieTarget = adjustedCalorieTarget(selectedDate);
+      document.getElementById('cals-target').textContent = dailyCalorieTarget.toLocaleString();
       document.getElementById('stat-cals-consumed').textContent = totals.calories.toLocaleString();
 
-      const calsDiff = journalState.targets.calories - totals.calories;
+      const calsDiff = dailyCalorieTarget - totals.calories;
       const statusEl = document.getElementById('calorie-balance-status');
       const statLeftEl = document.getElementById('stat-cals-left');
 
@@ -1034,12 +1051,12 @@
       // Circular Ring Progress for Calories
       const ringCircle = document.getElementById('cals-ring-circle');
       const circumference = 2 * Math.PI * 26; // r=26 => ~163.36
-      const calRatio = Math.min(totals.calories / (journalState.targets.calories || 1), 1);
+      const calRatio = Math.min(totals.calories / (dailyCalorieTarget || 1), 1);
       const dashOffset = circumference - (calRatio * circumference);
       ringCircle.style.strokeDashoffset = dashOffset;
-      const ringPercentText = Math.round((totals.calories / (journalState.targets.calories || 1)) * 100);
+      const ringPercentText = Math.round((totals.calories / (dailyCalorieTarget || 1)) * 100);
       document.getElementById('cals-percent').textContent = `${ringPercentText}%`;
-      ringCircle.setAttribute('stroke', totals.calories > journalState.targets.calories ? '#e11d48' : '#10b981');
+      ringCircle.setAttribute('stroke', totals.calories > dailyCalorieTarget ? '#e11d48' : '#10b981');
 
       // Strategy badge
       const activeStrategy = STRATEGY_PRESETS[journalState.presetId] || STRATEGY_PRESETS.custom;
@@ -1412,7 +1429,7 @@
         btn.addEventListener('click', () => {
           const conf = STRATEGY_PRESETS[btn.dataset.preset];
           if (conf) {
-            document.getElementById('input-target-cals').value = conf.calories;
+            document.getElementById('input-target-cals').value = WEEKLY_DAILY_CALORIE_LIMIT;
             document.getElementById('input-target-protein').value = conf.protein;
             document.getElementById('input-target-carbs').value = conf.carbs;
             document.getElementById('input-target-fat').value = conf.fat;
@@ -1470,7 +1487,7 @@
     }
 
     function populateTargetInputs() {
-      document.getElementById('input-target-cals').value = journalState.targets.calories;
+      document.getElementById('input-target-cals').value = WEEKLY_DAILY_CALORIE_LIMIT;
       document.getElementById('input-target-protein').value = journalState.targets.protein;
       document.getElementById('input-target-carbs').value = journalState.targets.carbs;
       document.getElementById('input-target-fat').value = journalState.targets.fat;
@@ -1478,7 +1495,7 @@
     }
 
     function saveCustomTargets() {
-      const cals = parseInt(document.getElementById('input-target-cals').value, 10);
+      const cals = WEEKLY_DAILY_CALORIE_LIMIT;
       const protein = parseInt(document.getElementById('input-target-protein').value, 10);
       const carbs = parseInt(document.getElementById('input-target-carbs').value, 10);
       const fat = parseInt(document.getElementById('input-target-fat').value, 10);
@@ -1489,7 +1506,7 @@
       }
 
       journalState.targets = {
-        calories: cals,
+        calories: WEEKLY_DAILY_CALORIE_LIMIT,
         protein: isNaN(protein) ? 0 : protein,
         carbs: isNaN(carbs) ? 0 : carbs,
         fat: isNaN(fat) ? 0 : fat
