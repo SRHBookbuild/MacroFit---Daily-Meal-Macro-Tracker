@@ -161,6 +161,19 @@
       <button id="weekly-view-btn" aria-pressed="false" class="px-4 py-2 rounded-xl text-sm font-bold bg-white text-slate-700 border border-slate-200">Weekly Overview</button>
     </nav>
     <div id="daily-view">
+<section id="exercise-daily" class="bg-white border border-slate-200 rounded-2xl p-5 mb-6 space-y-3">
+<h2 class="text-lg font-extrabold">Exercise Journal</h2><p class="text-xs text-slate-500">Exercise calories are tracked separately and never added to your food allowance.</p>
+<div class="flex flex-wrap gap-3 text-sm"><div class="bg-blue-50 rounded-xl p-3"><strong id="exercise-day-minutes">0</strong> min exercised</div><div class="bg-blue-50 rounded-xl p-3"><strong id="exercise-day-calories">0</strong> kcal burned</div><div class="bg-slate-50 rounded-xl p-3">Daily goal: <strong id="exercise-day-goal">30</strong> min</div></div>
+<div class="flex flex-wrap gap-2 items-end">
+<label class="text-xs font-semibold">Exercise type<input id="exercise-type" list="exercise-types" placeholder="e.g. Strength training" class="block border rounded-lg p-2 mt-1 w-48 text-sm"></label>
+<datalist id="exercise-types"><option value="Strength training"><option value="Walking"><option value="Running"><option value="Cycling"><option value="Swimming"><option value="Yoga"><option value="Pilates"><option value="Rowing"><option value="Elliptical"><option value="Other"></datalist>
+<label class="text-xs font-semibold">Minutes<input id="exercise-minutes" type="number" min="1" step="1" class="block border rounded-lg p-2 mt-1 w-24 text-sm"></label>
+<label class="text-xs font-semibold">Calories burned<input id="exercise-calories" type="number" min="0" step="1" class="block border rounded-lg p-2 mt-1 w-28 text-sm"></label>
+<button id="exercise-add" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Add Exercise</button></div>
+<div class="flex flex-wrap gap-2 items-end"><label class="text-xs font-semibold">Daily time goal (min)<input id="exercise-daily-target" type="number" min="0" step="5" class="block border rounded-lg p-2 mt-1 w-24 text-sm"></label>
+<label class="text-xs font-semibold">Weekly time goal (min)<input id="exercise-weekly-target" type="number" min="0" step="5" class="block border rounded-lg p-2 mt-1 w-28 text-sm"></label><button id="exercise-save-targets" class="border rounded-lg px-3 py-2 text-sm">Save Goals</button></div>
+<div class="border-t pt-3"><label class="text-xs font-semibold">Paste exercise from ChatGPT<input id="exercise-paste" placeholder="Walking | 30 min | 140 kcal" class="block border rounded-lg p-2 mt-1 w-full text-sm"></label><button id="exercise-paste-btn" class="border rounded-lg px-3 py-2 mt-2 text-sm">Import Exercise</button></div>
+<div id="exercise-day-list" class="divide-y text-sm"></div></section>
     
     <section id="cloud-sync-panel" class="bg-white rounded-2xl border border-slate-200 p-4 mb-5 flex flex-wrap items-center justify-between gap-3" aria-label="Cloud synchronisation">
       <div><p class="text-sm font-bold">Cloud sync <span id="cloud-sync-status" class="ml-2 text-xs font-normal text-slate-500">Not configured · local data stays on this device</span></p><p class="text-xs text-slate-500 mt-1">Optional: connect a secure account to share entries across devices.</p></div>
@@ -462,6 +475,7 @@
 
     </div>
     <section id="weekly-view" class="hidden space-y-6" aria-label="Weekly nutrition overview">
+<section class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3"><h2 class="text-lg font-extrabold">Weekly Exercise</h2><p class="text-xs text-slate-500">Sunday–Saturday. Exercise does not offset food calories.</p><div id="exercise-week-summary" class="text-sm font-semibold"></div><div id="exercise-week-list" class="space-y-2 text-sm"></div></section>
       <div class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-wrap gap-3 justify-between items-center">
         <div>
           <h1 class="font-display text-2xl font-extrabold text-slate-900">Weekly Overview</h1>
@@ -630,7 +644,7 @@
       targets: { calories: 2000, protein: 150, carbs: 200, fat: 67 },
       customFoods: [],
       // Stored by date string: 'YYYY-MM-DD' => { breakfast: [], lunch: [], dinner: [], snack: [] }
-      days: {}, weights: {}
+      days: {}, weights: {}, exercises: {}, exerciseTargets: {dailyMinutes:30,weeklyMinutes:150}
     };
 
     let selectedDate = getTodayDateString();
@@ -749,10 +763,87 @@
         return '<div class="flex-1 min-w-0 h-full flex flex-col justify-end items-center gap-2"><span class="text-[10px] sm:text-xs text-slate-600 truncate max-w-full">'+(x.count?fmt(x.calories):'—')+'</span><div class="w-full max-w-16 bg-emerald-500 rounded-t-lg" style="height:'+pct+'%"></div><span class="text-xs font-semibold text-slate-600">'+x.date.toLocaleDateString('en-AU',{weekday:'short'})+'</span></div>';
       }).join('');
       chart.setAttribute('aria-label','Calorie totals: '+rows.map(x=>x.date.toLocaleDateString('en-AU',{weekday:'short'})+' '+(x.count?fmt(x.calories)+' kcal':'not logged')).join(', ')+'. Target '+fmt(target)+' kcal');
+      renderWeeklyExercise(start);
       document.getElementById('weekly-table').innerHTML=rows.map(x=>
         '<tr><td class="py-3 pr-4 font-semibold">'+x.date.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+'</td>'+
         (x.count?['calories','protein','carbs','fat','sugar','satFat','sodium'].map((n,i)=>'<td class="pr-4">'+(i===0?fmt(x[n]):n==='sodium'?Math.round(x[n])+'mg':x[n].toFixed(1)+'g')+'</td>').join(''):'<td colspan="7" class="text-slate-400">No entries</td>')+'</tr>').join('');
     }
+
+    // Exercise is independent of calorie intake, including weekly calorie rollovers.
+    function exerciseEntries(key) {
+      if (!journalState.exercises || !Array.isArray(journalState.exercises[key])) return [];
+      return journalState.exercises[key];
+    }
+    function exerciseTotals(key) {
+      return exerciseEntries(key).reduce((a,x)=>({minutes:a.minutes+(Number(x.minutes)||0),calories:a.calories+(Number(x.calories)||0)}),{minutes:0,calories:0});
+    }
+    function exerciseEscape(x) {
+      return String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function renderDailyExercise() {
+      const totals=exerciseTotals(selectedDate);
+      const goals=journalState.exerciseTargets||{dailyMinutes:30,weeklyMinutes:150};
+      document.getElementById('exercise-day-minutes').textContent=totals.minutes;
+      document.getElementById('exercise-day-calories').textContent=totals.calories;
+      document.getElementById('exercise-day-goal').textContent=Number(goals.dailyMinutes)||0;
+      document.getElementById('exercise-daily-target').value=Number(goals.dailyMinutes)||0;
+      document.getElementById('exercise-weekly-target').value=Number(goals.weeklyMinutes)||0;
+      document.getElementById('exercise-day-list').innerHTML=exerciseEntries(selectedDate).map((e,i)=>
+        '<div class="py-2 flex flex-wrap gap-2 justify-between items-center"><span><strong>'+exerciseEscape(e.type)+'</strong> · '+e.minutes+' min · '+e.calories+' kcal</span><span class="flex gap-2"><button data-exercise-copy="'+i+'" class="border px-2 py-1 rounded text-xs">Copy</button><button data-exercise-delete="'+i+'" class="border px-2 py-1 rounded text-xs text-rose-600">Delete</button></span></div>').join('')||'<p class="text-slate-400 py-2">No exercise logged for this date.</p>';
+    }
+    function renderWeeklyExercise(start) {
+      const goal=Number(journalState.exerciseTargets?.weeklyMinutes)||0;
+      let minutes=0,calories=0;
+      const rows=Array.from({length:7},(_,i)=>{
+        const d=new Date(start);d.setDate(d.getDate()+i);
+        const t=exerciseTotals(journalDateKey(d));minutes+=t.minutes;calories+=t.calories;
+        return '<div class="flex justify-between border-b py-1"><span>'+d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+'</span><span>'+t.minutes+' min · '+t.calories+' kcal</span></div>';
+      });
+      document.getElementById('exercise-week-summary').textContent=minutes+' / '+goal+' min weekly goal · '+calories+' kcal burned';
+      document.getElementById('exercise-week-list').innerHTML=rows.join('');
+    }
+    function addExercise(type,minutes,calories) {
+      type=String(type||'').trim();minutes=Number(minutes);calories=Number(calories);
+      if (!type || !Number.isFinite(minutes) || minutes<=0 || !Number.isFinite(calories) || calories<0) {
+        showToast('Enter exercise type, positive minutes and non-negative calories','error');return;
+      }
+      journalState.exercises=journalState.exercises||{};
+      journalState.exercises[selectedDate]=journalState.exercises[selectedDate]||[];
+      journalState.exercises[selectedDate].push({type,minutes:Math.round(minutes),calories:Math.round(calories)});
+      saveState();renderDailyExercise();
+      showToast('Exercise added','success');
+    }
+    function initExerciseControls() {
+      document.getElementById('exercise-add').onclick=()=>{
+        addExercise(document.getElementById('exercise-type').value,document.getElementById('exercise-minutes').value,document.getElementById('exercise-calories').value);
+      };
+      document.getElementById('exercise-save-targets').onclick=()=>{
+        const daily=Number(document.getElementById('exercise-daily-target').value),weekly=Number(document.getElementById('exercise-weekly-target').value);
+        if(!Number.isFinite(daily)||!Number.isFinite(weekly)||daily<0||weekly<0){showToast('Enter valid time goals','error');return;}
+        journalState.exerciseTargets={dailyMinutes:Math.round(daily),weeklyMinutes:Math.round(weekly)};
+        saveState();renderDailyExercise();showToast('Exercise goals saved','success');
+      };
+      document.getElementById('exercise-paste-btn').onclick=()=>{
+        const raw=document.getElementById('exercise-paste').value.trim();
+        const m=raw.match(/^(.+?)\s*\|\s*(\d+(?:\.\d+)?)\s*(?:min|minutes?)\s*\|\s*(\d+(?:\.\d+)?)\s*(?:kcal|calories?)\s*$/i);
+        if(!m){showToast('Use: Walking | 30 min | 140 kcal','error');return;}
+        addExercise(m[1],m[2],m[3]);
+        document.getElementById('exercise-paste').value='';
+      };
+      document.getElementById('exercise-day-list').onclick=e=>{
+        const copy=e.target.closest('[data-exercise-copy]'),del=e.target.closest('[data-exercise-delete]');
+        if(copy){
+          const x=exerciseEntries(selectedDate)[Number(copy.dataset.exerciseCopy)];
+          if(x) navigator.clipboard.writeText(x.type+' | '+x.minutes+' min | '+x.calories+' kcal').then(()=>showToast('Exercise copied','success')).catch(()=>showToast('Copy unavailable','error'));
+        }
+        if(del){
+          const index=Number(del.dataset.exerciseDelete);
+          if(!confirm('Delete this exercise entry?'))return;
+          journalState.exercises[selectedDate].splice(index,1);saveState();renderDailyExercise();
+        }
+      };
+    }
+
     function initWeightControls(){
       document.getElementById('weight-save').onclick=()=>{
         const x=Number(document.getElementById('daily-weight').value);
@@ -830,6 +921,7 @@
       setupPasteNutrition();
       initWeeklyControls();
       initWeightControls();
+      initExerciseControls();
       renderPresetLibrary();
       loadCurrentDay();
       if (window.MacroFitCloud) window.MacroFitCloud.init();
@@ -950,6 +1042,7 @@
       renderMealSections();
       updateDashboardSummary();
       document.getElementById("daily-weight").value=journalState.weights?.[selectedDate] ?? "";
+      renderDailyExercise();
     }
 
     // Update Dashboard Summary, Rings, and Progress Bars
