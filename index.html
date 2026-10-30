@@ -231,7 +231,8 @@
             <span id="cals-target" class="text-slate-600 text-lg font-medium">2000</span>
             <span class="text-xs font-bold ml-2 text-slate-500 uppercase tracking-normal">kcal</span>
           </h1>
-          <p id="calorie-balance-status" class="text-xs font-semibold mt-1 text-emerald-600">2,000 kcal remaining</p>
+          <p id="adjusted-calorie-allowance" class="text-xs font-semibold mt-1 text-slate-600">Adjusted allowance today: 2,000 kcal</p>
+          <p id="calorie-balance-status" class="text-xs font-semibold mt-1 text-emerald-600">2,000 kcal remaining from adjusted allowance</p>
         </div>
 
         <!-- Strategy Badge & Quick Change -->
@@ -254,7 +255,7 @@
             <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700">Calories</span>
             <div class="mt-1 flex items-baseline space-x-1">
               <span id="stat-cals-left" class="text-2xl font-bold text-slate-800">2000</span>
-              <span class="text-xs text-slate-400">kcal left</span>
+              <span class="text-xs text-slate-400">kcal left (adjusted)</span>
             </div>
             <div class="mt-2 text-xs text-slate-500">
               <span id="stat-cals-consumed" class="font-semibold text-slate-700">0</span> consumed
@@ -1074,7 +1075,8 @@
 
       document.getElementById('cals-consumed').textContent = totals.calories.toLocaleString();
       const dailyCalorieTarget = adjustedCalorieTarget(selectedDate);
-      document.getElementById('cals-target').textContent = dailyCalorieTarget.toLocaleString();
+      document.getElementById('cals-target').textContent = WEEKLY_DAILY_CALORIE_LIMIT.toLocaleString();
+      document.getElementById('adjusted-calorie-allowance').textContent = 'Adjusted allowance today: ' + dailyCalorieTarget.toLocaleString() + ' kcal' + (dailyCalorieTarget < WEEKLY_DAILY_CALORIE_LIMIT ? ' (weekly excess adjustment)' : ' (no adjustment)');
       document.getElementById('stat-cals-consumed').textContent = totals.calories.toLocaleString();
 
       const calsDiff = dailyCalorieTarget - totals.calories;
@@ -1082,14 +1084,14 @@
       const statLeftEl = document.getElementById('stat-cals-left');
 
       if (calsDiff >= 0) {
-        statusEl.textContent = `${calsDiff.toLocaleString()} kcal remaining`;
+        statusEl.textContent = `${calsDiff.toLocaleString()} kcal remaining from adjusted allowance`;
         statusEl.className = 'text-xs font-semibold mt-1 text-emerald-600';
         statLeftEl.textContent = calsDiff.toLocaleString();
         statLeftEl.classList.remove('text-rose-600');
         statLeftEl.classList.add('text-slate-800');
       } else {
         const overage = Math.abs(calsDiff);
-        statusEl.textContent = `Target exceeded by ${overage.toLocaleString()} kcal`;
+        statusEl.textContent = `Adjusted allowance exceeded by ${overage.toLocaleString()} kcal`;
         statusEl.className = 'text-xs font-semibold mt-1 text-rose-600 flex items-center';
         statLeftEl.textContent = `+${overage.toLocaleString()}`;
         statLeftEl.classList.remove('text-slate-800');
