@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
         val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(36, 48, 36, 36) }
         layout.addView(TextView(this).apply { text = "MacroFit Health Sync"; textSize = 24f })
         email = EditText(this).apply { hint = "MacroFit account email"; inputType = 33 }
-        otp = EditText(this).apply { hint = "Email verification code" }
+        otp = EditText(this).apply { hint = "Paste the sign-in link from your email"; inputType = 17 }
         status = TextView(this).apply { text = "Sign in to the same account as your MacroFit website." }
         layout.addView(email); layout.addView(otp)
         fun button(label: String, onClick: () -> Unit) {
@@ -50,8 +50,8 @@ class MainActivity : ComponentActivity() {
                 status.text = try { withContext(Dispatchers.IO) { task() } } catch (e: Exception) { "Error: ${e.message}" }
             }
         }
-        button("Email me a verification code") { run("Requesting code...") { Api.sendCode(email.text.toString()) } }
-        button("Verify code") { run("Signing in...") { Api.verify(this, email.text.toString(), otp.text.toString()) } }
+        button("Email me a sign-in link") { run("Requesting link...") { Api.sendCode(email.text.toString()) } }
+        button("Sign in with pasted link") { run("Signing in...") { Api.verify(this, email.text.toString(), otp.text.toString()) } }
         button("Grant Health Connect permission") {
             if (HealthConnectClient.getSdkStatus(this) == HealthConnectClient.SDK_AVAILABLE)
                 permission.launch(setOf(HealthPermission.getWritePermission(NutritionRecord::class)))
@@ -99,10 +99,15 @@ object Api {
     fun sendCode(email: String): String {
         require(email.contains("@")) { "Enter a valid email" }
         request("POST", "/auth/v1/otp", JSONObject().put("email", email).put("create_user", false))
-        return "Code requested. Supabase email template must include {{ .Token }}."
+        return "Email sent. Long-press the Sign in button in the email, copy its link (do not open it), and paste the link above."
     }
     fun verify(context: android.content.Context, email: String, code: String): String {
-        val result = JSONObject(request("POST", "/auth/v1/verify", JSONObject().put("email", email).put("token", code).put("type", "email")))
+        val uri = android.net.Uri.parse(code.trim())
+        require(uri.scheme == "https" && uri.host == "srkmqaprzqgvwsnzofhi.supabase.co" && uri.path == "/auth/v1/verify") { "Paste the full Supabase sign-in link copied from the email (not the MacroFit website URL)." }
+        val token = uri.getQueryParameter("token") ?: uri.getQueryParameter("token_hash") ?: error("Sign-in link has no token")
+        val type = uri.getQueryParameter("type") ?: "magiclink"
+        require(type == "magiclink" || type == "email") { "Unexpected sign-in link type" }
+        val result = JSONObject(request("POST", "/auth/v1/verify", JSONObject().put("token_hash", token).put("type", type)))
         context.getSharedPreferences(PREFS, 0).edit().putString("refresh", result.getString("refresh_token")).apply()
         return "Signed in."
     }
