@@ -102,12 +102,42 @@ object Api {
         return "Email sent. Long-press the Sign in button in the email, copy its link (do not open it), and paste the link above."
     }
     fun verify(context: android.content.Context, email: String, code: String): String {
-        val uri = android.net.Uri.parse(code.trim())
-        require(uri.scheme == "https" && uri.host == "srkmqaprzqgvwsnzofhi.supabase.co" && uri.path == "/auth/v1/verify") { "Paste the full Supabase sign-in link copied from the email (not the MacroFit website URL)." }
-        val token = uri.getQueryParameter("token") ?: uri.getQueryParameter("token_hash") ?: error("Sign-in link has no token")
+        // Outlook/Hotmail Safe Links wrap the original Supabase URL in a url= parameter.
+        // Decode locally; never send a one-time sign-in URL to an external decoder.
+        var link = code.trim()
+        repeat(3) {
+            val wrapped = android.net.Uri.parse(link)
+            if (wrapped.scheme == "https" && wrapped.host?.lowercase()?.endsWith(".safelinks.protection.outlook.com") == true) {
+                link = wrapped.getQueryParameter("url") ?: error("Microsoft Safe Link is missing its original URL")
+            }
+        }
+        val uri = android.net.Uri.parse(link)
+        require(uri.scheme == "https" && uri.host == "srkmqaprzqgvwsnzofhi.supabase.co" && uri.path == "/auth/v1/verify") { "Paste the original Supabase sign-in link or its Microsoft Safe Links wrapper." }
         val type = uri.getQueryParameter("type") ?: "magiclink"
         require(type == "magiclink" || type == "email") { "Unexpected sign-in link type" }
-        val result = JSONObject(request("POST", "/auth/v1/verify", JSONObject().put("token_hash", token).put("type", type)))
+        val hash = uri.getQueryParameter("token_hash")
+        val result = if (hash != null) {
+            JSONObject(request("POST", "/auth/v1/verify", JSONObject().put("token_hash", hash).put("type", type)))
+        } else {
+            // Magic-link emails commonly contain token= rather than token_hash=.
+            // GET the original verify URL without following the redirect to the website.
+            require(uri.getQueryParameter("token") != null) { "Sign-in link has no token" }
+            val conn = (URL(link).openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = false
+                connectTimeout = 12000; readTimeout = 12000
+                setRequestProperty("apikey", ANON)
+            }
+            try {
+                val location = conn.getHeaderField("Location")
+                require(conn.responseCode in 300..399 && !location.isNullOrBlank()) { "Supabase could not verify this link (it may be expired or already used)." }
+                val redirect = android.net.Uri.parse(location)
+                val fragment = redirect.encodedFragment ?: ""
+                val fragmentUri = android.net.Uri.parse("https://local.invalid/?$fragment")
+                val refresh = fragmentUri.getQueryParameter("refresh_token")
+                require(!refresh.isNullOrBlank()) { "Verification did not return a session. Request a fresh sign-in email." }
+                JSONObject().put("refresh_token", refresh)
+            } finally { conn.disconnect() }
+        }
         context.getSharedPreferences(PREFS, 0).edit().putString("refresh", result.getString("refresh_token")).apply()
         return "Signed in."
     }
