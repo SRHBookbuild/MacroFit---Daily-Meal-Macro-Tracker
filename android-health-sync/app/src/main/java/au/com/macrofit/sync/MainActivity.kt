@@ -9,6 +9,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.NutritionRecord
+import androidx.health.connect.client.records.MealType
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.units.Mass
@@ -140,10 +141,10 @@ object SyncEngine {
                         startZoneOffset = zone.rules.getOffset(start), endZoneOffset = zone.rules.getOffset(start),
                         name = item.optString("name", "MacroFit food"),
                         mealType = when (meal) {
-                            "breakfast" -> NutritionRecord.MEAL_TYPE_BREAKFAST
-                            "lunch" -> NutritionRecord.MEAL_TYPE_LUNCH
-                            "dinner" -> NutritionRecord.MEAL_TYPE_DINNER
-                            else -> NutritionRecord.MEAL_TYPE_SNACK
+                            "breakfast" -> MealType.BREAKFAST
+                            "lunch" -> MealType.LUNCH
+                            "dinner" -> MealType.DINNER
+                            else -> MealType.SNACK
                         },
                         energy = Energy.kilocalories(calories),
                         protein = grams("protein"), totalCarbohydrate = grams("carbs"), totalFat = grams("fat"),
