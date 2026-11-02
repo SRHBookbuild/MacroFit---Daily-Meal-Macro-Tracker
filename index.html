@@ -872,12 +872,16 @@
     function setupPasteNutrition(){
       document.getElementById('paste-nutrition-btn').addEventListener('click',async()=>{
         let raw='';
-        try {raw=await navigator.clipboard.readText();}
-        catch(e) {raw=prompt('Paste the copied MacroFit nutrition text here:')||'';}
+        try {raw=await navigator.clipboard.readText();} catch(e) {}
+        // Some mobile browsers return an empty clipboard without throwing.
+        if(!raw.trim())raw=prompt('Paste the copied MacroFit nutrition text here:')||'';
         if(!raw.trim())return;
-        const fields=raw.split('|').map(x=>x.trim()).filter(Boolean);
-        // Supported format: Food | 2 rolls | 250 kcal | Protein 18g | ...
-        const labels={
+
+        // Accept pipe-separated, line-separated and comma-separated ChatGPT entries.
+        const text=raw.replace(/\r/g,'').trim();
+        const parts=text.split(/\n|\||,(?=\s*(?:calories?|energy|protein|carbs?|carbohydrates?|fat|total fat|sugar|saturated fat|sat\.? fat|sodium|fibre|fiber)\b)/i)
+          .map(x=>x.trim()).filter(Boolean);
+        const patterns={
           calories:/^(?:calories?|energy)\s*:?\s*([\d,.]+)\s*(?:kcal|calories?)?$/i,
           protein:/^protein\s*:?\s*([\d,.]+)\s*g?$/i,
           carbs:/^(?:carbs?|carbohydrates?)\s*:?\s*([\d,.]+)\s*g?$/i,
@@ -886,25 +890,34 @@
           satfat:/^(?:saturated fat|sat\.? fat|saturates?)\s*:?\s*([\d,.]+)\s*g?$/i,
           sodium:/^sodium\s*:?\s*([\d,.]+)\s*(mg|g)?$/i
         };
-        const values={};let name='';let serving='';
-        for(const field of fields){
+        const values={};let name='',serving='';
+        for(const part of parts){
+          const field=part.replace(/^[-*]\s*/,'').replace(/\*\*/g,'').trim();
           let matched=false;
-          for(const [key,re] of Object.entries(labels)){
+          for(const [key,re] of Object.entries(patterns)){
             const m=field.match(re);
-            if(m){
-              const v=Number(m[1].replace(/,/g,''));
-              if(!Number.isFinite(v)||v<0){showToast('Invalid nutrient value','error');return;}
-              values[key]=key==='sodium'&&m[2]?.toLowerCase()==='g'?v*1000:v;
-              matched=true;break;
-            }
+            if(!m)continue;
+            const v=Number(m[1].replace(/,/g,''));
+            if(!Number.isFinite(v)||v<0){showToast('Invalid nutrient value','error');return;}
+            values[key]=key==='sodium'&&m[2]?.toLowerCase()==='g'?v*1000:v;
+            matched=true;break;
           }
-          if(!matched){
-            const kcal=field.match(/^([\d,.]+)\s*(?:kcal|calories?)$/i);
-            if(kcal){values.calories=Number(kcal[1].replace(/,/g,''));matched=true;}
-          }
-          if(!matched){if(!name)name=field;else if(!serving)serving=field;}
+          if(matched)continue;
+          const kcal=field.match(/^([\d,.]+)\s*(?:kcal|calories?)$/i);
+          if(kcal){values.calories=Number(kcal[1].replace(/,/g,''));continue;}
+          const named=field.match(/^(?:name|food|item)\s*:\s*(.+)$/i);
+          if(named){name=named[1].trim();continue;}
+          const served=field.match(/^(?:serving|portion|unit)\s*:\s*(.+)$/i);
+          if(served){serving=served[1].trim();continue;}
+          // "Food name, 695 calories, ..." is a common one-line output.
+          const inline=field.match(/^(.+?),\s*([\d,.]+)\s*(?:kcal|calories?)$/i);
+          if(inline){name=inline[1].trim();values.calories=Number(inline[2].replace(/,/g,''));continue;}
+          if(!name)name=field;
+          else if(!serving)serving=field;
         }
-        if(!name||values.calories===undefined){showToast('Paste must include a food name and calories','error');return;}
+        if(!name||values.calories===undefined){
+          showToast('Paste must include a food name and calories','error');return;
+        }
         const ids={calories:'custom-cals',protein:'custom-protein',carbs:'custom-carbs',fat:'custom-fat',sugar:'custom-sugar',satfat:'custom-satfat',sodium:'custom-sodium'};
         document.getElementById('custom-name').value=name;
         document.getElementById('custom-unit').value=serving||'1 serving';
